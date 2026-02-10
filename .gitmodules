@@ -1,0 +1,3 @@
+[submodule "external/tinycsocket"]
+	path = external/tinycsocket
+	url = https://github.com/dosshell/tinycsocket.git

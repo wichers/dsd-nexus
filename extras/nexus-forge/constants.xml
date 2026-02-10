@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<NexusForgeConstants>
+
+  <!-- Whether the program is a portable application (Windows only).
+       Portable mode: settings in (app dir)/nexus-forge.ini
+       Normal mode: settings in user config directory -->
+  <Portable type="boolean">false</Portable>
+
+  <!-- DSD file extensions for the file open dialog -->
+  <DsdExtensions>
+     iso dsf dff dsdiff
+  </DsdExtensions>
+
+  <!-- Start conversion immediately after adding files to the list.
+       Overridden by user settings. -->
+  <AutoStartConversion type="boolean">false</AutoStartConversion>
+
+  <!-- Default folder name for output -->
+  <NewFolderName>dsd_output</NewFolderName>
+
+  <!-- Main window toolbar entries (case insensitive)
+       Valid: AddFiles ExtractSacd Options Exit
+              RemoveSelectedItems RemoveCompletedItems ClearList
+              OpenOutputFolder SetParameters
+              ShowErrorMessage
+              StartConversion StopConversion Retry RetryAll
+              About AboutQt
+       Use "|" for separator -->
+  <ToolbarEntries>
+    AddFiles ExtractSacd StartConversion StopConversion Retry RetryAll
+    | RemoveSelectedItems RemoveCompletedItems ClearList | OpenOutputFolder
+  </ToolbarEntries>
+
+  <!-- Number of recent paths to remember -->
+  <NumRecentPaths type="integer">5</NumRecentPaths>
+
+</NexusForgeConstants>

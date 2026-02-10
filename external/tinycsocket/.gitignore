@@ -1,0 +1,10 @@
+.vs/
+.cache/
+docs/_*
+.vscode/
+/build/
+/build_coverage/
+/coverage_report/
+/out/
+cobertura.xml
+CmakeSettings.json

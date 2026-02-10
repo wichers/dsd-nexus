@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>450</width>
+    <height>250</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>450</width>
+    <height>250</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Nexus Forge</string>
+  </property>
+  <property name="iconSize">
+   <size>
+    <width>22</width>
+    <height>22</height>
+   </size>
+  </property>
+  <property name="toolButtonStyle">
+   <enum>Qt::ToolButtonTextUnderIcon</enum>
+  </property>
+  <property name="animated">
+   <bool>false</bool>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <property name="dockNestingEnabled">
+   <bool>false</bool>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QGridLayout" name="gridLayout_3">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <property name="spacing">
+     <number>0</number>
+    </property>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>450</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="nativeMenuBar">
+    <bool>true</bool>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionAddFiles"/>
+    <addaction name="actionExtractSacd"/>
+    <addaction name="actionOptions"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>&amp;Edit</string>
+    </property>
+    <addaction name="actionRemoveSelectedItems"/>
+    <addaction name="actionRemoveCompletedItems"/>
+    <addaction name="actionClearList"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenOutputFolder"/>
+    <addaction name="actionSetParameters"/>
+    <addaction name="actionChangeOutputFilename"/>
+    <addaction name="actionChangeOutputDirectory"/>
+    <addaction name="actionShowErrorMessage"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpenSettingFolder"/>
+   </widget>
+   <widget class="QMenu" name="menuConvert">
+    <property name="title">
+     <string>&amp;Convert</string>
+    </property>
+    <addaction name="actionStartConversion"/>
+    <addaction name="actionStopConversion"/>
+    <addaction name="actionRetry"/>
+    <addaction name="actionRetryAll"/>
+   </widget>
+   <widget class="QMenu" name="menuAbout">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+    <addaction name="actionAboutQt"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuConvert"/>
+   <addaction name="menuAbout"/>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="contextMenuPolicy">
+    <enum>Qt::DefaultContextMenu</enum>
+   </property>
+   <property name="windowTitle">
+    <string notr="true">Nexus Forge</string>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
+   <property name="inputMethodHints">
+    <set>Qt::ImhNone</set>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::TopToolBarArea</set>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+  </widget>
+  <action name="actionAddFiles">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/add.svg</normaloff>:/actions/icons/add.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Add Files</string>
+   </property>
+   <property name="statusTip">
+    <string>Add files for conversion.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+N</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
+   <property name="shortcutVisibleInContextMenu">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/exit.svg</normaloff>:/actions/icons/exit.svg</iconset>
+   </property>
+   <property name="text">
+    <string>E&amp;xit</string>
+   </property>
+   <property name="statusTip">
+    <string>Exit the program.</string>
+   </property>
+  </action>
+  <action name="actionStartConversion">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/convert.svg</normaloff>:/actions/icons/convert.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Convert</string>
+   </property>
+   <property name="statusTip">
+    <string>Start conversion process.</string>
+   </property>
+   <property name="shortcut">
+    <string>F5</string>
+   </property>
+  </action>
+  <action name="actionStopConversion">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/stop.svg</normaloff>:/actions/icons/stop.svg</iconset>
+   </property>
+   <property name="text">
+    <string>S&amp;top</string>
+   </property>
+   <property name="statusTip">
+    <string>Stop conversion process.</string>
+   </property>
+  </action>
+  <action name="actionSetParameters">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/settings.svg</normaloff>:/actions/icons/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Set &amp;Parameters</string>
+   </property>
+   <property name="iconText">
+    <string extracomment="Edit output file parameters.">Set Parameters</string>
+   </property>
+   <property name="statusTip">
+    <string>Edit conversion parameters of selected files.</string>
+   </property>
+  </action>
+  <action name="actionAboutQt">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/qt.svg</normaloff>:/actions/icons/qt.svg</iconset>
+   </property>
+   <property name="text">
+    <string>About &amp;Qt</string>
+   </property>
+   <property name="statusTip">
+    <string>About Qt</string>
+   </property>
+  </action>
+  <action name="actionOpenOutputFolder">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/open_folder.svg</normaloff>:/actions/icons/open_folder.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Open Output Folder</string>
+   </property>
+   <property name="statusTip">
+    <string>Open output folder of the selected file.</string>
+   </property>
+  </action>
+  <action name="actionRemoveSelectedItems">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/remove.svg</normaloff>:/actions/icons/remove.svg</iconset>
+   </property>
+   <property name="text">
+    <string extracomment="remove selected (tasks, items)">&amp;Remove Selected</string>
+   </property>
+   <property name="statusTip">
+    <string>Remove all selected items in the list.</string>
+   </property>
+  </action>
+  <action name="actionRemoveCompletedItems">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/remove_completed.svg</normaloff>:/actions/icons/remove_completed.svg</iconset>
+   </property>
+   <property name="text">
+    <string extracomment="remove completed (task, items)">R&amp;emove Completed</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove Completed Items</string>
+   </property>
+   <property name="statusTip">
+    <string>Remove all completed items in the list.</string>
+   </property>
+  </action>
+  <action name="actionClearList">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/clear.svg</normaloff>:/actions/icons/clear.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Clear &amp;List</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear List</string>
+   </property>
+   <property name="statusTip">
+    <string>Remove all items in the list.</string>
+   </property>
+  </action>
+  <action name="actionRetry">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/retry.svg</normaloff>:/actions/icons/retry.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Retry</string>
+   </property>
+   <property name="toolTip">
+    <string>Retry</string>
+   </property>
+   <property name="statusTip">
+    <string>Retry selected tasks.</string>
+   </property>
+  </action>
+  <action name="actionRetryAll">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/retry_all.svg</normaloff>:/actions/icons/retry_all.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Retry &amp;All</string>
+   </property>
+   <property name="statusTip">
+    <string>Retry all tasks.</string>
+   </property>
+   <property name="shortcut">
+    <string/>
+   </property>
+  </action>
+  <action name="actionOptions">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/settings.svg</normaloff>:/actions/icons/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Options</string>
+   </property>
+   <property name="statusTip">
+    <string>Options</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/about.svg</normaloff>:/actions/icons/about.svg</iconset>
+   </property>
+   <property name="text">
+    <string>About Nexus Forge</string>
+   </property>
+   <property name="statusTip">
+    <string>About This Program</string>
+   </property>
+  </action>
+  <action name="actionChangeOutputFilename">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/edit_file_name.svg</normaloff>:/actions/icons/edit_file_name.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Change Output &amp;Filename</string>
+   </property>
+   <property name="statusTip">
+    <string>Change the output filename of the selected item.</string>
+   </property>
+  </action>
+  <action name="actionChangeOutputDirectory">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/edit_folder_name.svg</normaloff>:/actions/icons/edit_folder_name.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Change Output &amp;Directory</string>
+   </property>
+   <property name="statusTip">
+    <string>Change the output directory of the selected items.</string>
+   </property>
+  </action>
+  <action name="actionShowErrorMessage">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/error.svg</normaloff>:/actions/icons/error.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Error &amp;Message</string>
+   </property>
+  </action>
+  <action name="actionOpenSettingFolder">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/settings_folder.svg</normaloff>:/actions/icons/settings_folder.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Open Setting Folder</string>
+   </property>
+  </action>
+  <action name="actionExtractSacd">
+   <property name="icon">
+    <iconset resource="../images.qrc">
+     <normaloff>:/actions/icons/add.svg</normaloff>:/actions/icons/add.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Extract &amp;SACD...</string>
+   </property>
+   <property name="statusTip">
+    <string>Extract SACD disc image from PS3 drive or network.</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="../images.qrc"/>
+ </resources>
+ <connections/>
+</ui>

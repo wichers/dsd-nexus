@@ -1,0 +1,33 @@
+<RCC>
+    <qresource prefix="/actions">
+        <file>icons/add.svg</file>
+        <file>icons/retry.svg</file>
+        <file>icons/retry_all.svg</file>
+        <file>icons/settings.svg</file>
+        <file>icons/convert.svg</file>
+        <file>icons/error.svg</file>
+        <file>icons/clear.svg</file>
+        <file>icons/remove_completed.svg</file>
+        <file>icons/remove.svg</file>
+        <file>icons/open_folder.svg</file>
+        <file>icons/exit.svg</file>
+        <file>icons/stop.svg</file>
+        <file>icons/edit_file_name.svg</file>
+        <file>icons/edit_folder_name.svg</file>
+        <file>icons/about.svg</file>
+        <file>icons/info.svg</file>
+        <file>icons/settings2.svg</file>
+        <file>icons/qt.svg</file>
+        <file>icons/settings_folder.svg</file>
+    </qresource>
+    <qresource prefix="/app">
+        <file>icons/nexus-forge.svg</file>
+    </qresource>
+    <qresource prefix="/other">
+        <file>icons/list_background.png</file>
+        <file>constants.xml</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>constants.xml</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,50 @@
+/*
+ * This file is part of DSD-Nexus.
+ * Copyright (c) 2026 Alexander Wichers
+ *
+ * DSD-Nexus is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * DSD-Nexus is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with DSD-Nexus; if not, see <https://www.gnu.org/licenses/>.
+ *
+ * Auto-generated from version.h.in -- do not edit.
+ */
+
+#ifndef @VERSION_GUARD@
+#define @VERSION_GUARD@
+
+/* ── Version numbers ─────────────────────────────────────────────── */
+
+#define @VERSION_PREFIX@VERSION_MAJOR  @VERSION_MAJOR@
+#define @VERSION_PREFIX@VERSION_MINOR  @VERSION_MINOR@
+#define @VERSION_PREFIX@VERSION_PATCH  @VERSION_PATCH@
+
+#define @VERSION_PREFIX@VERSION_STRING "@VERSION_STRING@"
+
+/* Packed integer: (major << 16) | (minor << 8) | patch */
+#define @VERSION_PREFIX@VERSION_INT \
+    ((@VERSION_PREFIX@VERSION_MAJOR << 16) | \
+     (@VERSION_PREFIX@VERSION_MINOR << 8)  | \
+      @VERSION_PREFIX@VERSION_PATCH)
+
+/* ── Git information ─────────────────────────────────────────────── */
+
+#define @VERSION_PREFIX@GIT_HASH    "@GIT_COMMIT_HASH@"
+#define @VERSION_PREFIX@GIT_REPO    "@GIT_REPO_URL@"
+
+/* ── Human-readable banner ───────────────────────────────────────── */
+
+#define @VERSION_PREFIX@VERSION_INFO \
+    "@VERSION_PRODUCT@ " @VERSION_PREFIX@VERSION_STRING \
+    " (" @VERSION_PREFIX@GIT_HASH ")\n" \
+    "Copyright (c) 2026 by Alexander Wichers.\n"
+
+#endif /* @VERSION_GUARD@ */
