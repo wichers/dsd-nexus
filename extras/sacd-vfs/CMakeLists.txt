@@ -179,12 +179,19 @@ if(WIN32)
 endif()
 
 # Link libraries (statically linked via OBJECT libraries, not the full libdsd umbrella)
+# OBJECT libraries don't propagate object files transitively (requires CMake 3.21+),
+# so every OBJECT lib in the dependency chain must be listed explicitly.
 # Dependency chain: libsacdvfs -> libsacd, libdst -> libps3drive -> libsg3 -> sautil
 target_link_libraries(sacd-mount
     PRIVATE
         libsacdvfs
+        libsacd
+        libdst
+        libps3drive
+        libsg3
+        sautil
         ${FUSE_LIBRARIES}
-        # Private deps of OBJECT libraries that don't propagate transitively
+        # External deps of OBJECT libraries that don't propagate transitively
         nanopb
         tinycsocket
         id3dev
