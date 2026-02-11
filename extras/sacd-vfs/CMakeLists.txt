@@ -165,6 +165,7 @@ target_compile_definitions(sacd-mount
     PRIVATE
         FUSE_USE_VERSION=35
         _FILE_OFFSET_BITS=64
+        SACD_NO_DLL
         ${FUSE_DEFINITIONS}
 )
 
@@ -177,12 +178,22 @@ if(WIN32)
     )
 endif()
 
-# Link libraries
+# Link libraries (statically linked via OBJECT libraries, not the full libdsd umbrella)
+# Dependency chain: libsacdvfs -> libsacd, libdst -> libps3drive -> libsg3 -> sautil
 target_link_libraries(sacd-mount
     PRIVATE
-        libdsd
+        libsacdvfs
         ${FUSE_LIBRARIES}
+        # Private deps of OBJECT libraries that don't propagate transitively
+        nanopb
+        tinycsocket
+        id3dev
 )
+if(TARGET mbedcrypto)
+    target_link_libraries(sacd-mount PRIVATE mbedcrypto)
+elseif(TARGET MbedTLS::mbedcrypto)
+    target_link_libraries(sacd-mount PRIVATE MbedTLS::mbedcrypto)
+endif()
 
 
 # Compiler flags
