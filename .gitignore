@@ -12,6 +12,7 @@ install_manifest.txt
 Makefile
 *.cmake
 !CMakeLists.txt
+!cmake/*.cmake
 !cmake/*.cmake.in
 
 # Compiled files
