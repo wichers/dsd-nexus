@@ -22,6 +22,10 @@
     </qresource>
     <qresource prefix="/app">
         <file>icons/nexus-forge.svg</file>
+        <file>icons/nexus_forge_16x16.png</file>
+        <file>icons/nexus_forge_32x32.png</file>
+        <file>icons/nexus_forge_64x64.png</file>
+        <file>icons/nexus_forge_128x128.png</file>
     </qresource>
     <qresource prefix="/other">
         <file>icons/list_background.png</file>

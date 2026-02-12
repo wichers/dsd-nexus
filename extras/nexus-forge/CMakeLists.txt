@@ -8,8 +8,13 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 COMPONENTS Svg QUIET)
 if(UNIX AND NOT APPLE)
     find_package(Qt6 COMPONENTS DBus QUIET)
+endif()
+
+if(NOT Qt6Svg_FOUND)
+    message(WARNING "Qt6 Svg component not found -- SVG icons will not be visible in the application toolbar. Install qt6-svg package to fix this.")
 endif()
 
 # LGPL compliance: Qt6 must be dynamically linked
@@ -85,6 +90,10 @@ target_link_libraries(nexus-forge PRIVATE
     Qt6::Widgets
     libdsd
 )
+
+if(TARGET Qt6::Svg)
+    target_link_libraries(nexus-forge PRIVATE Qt6::Svg)
+endif()
 
 if(WIN32)
     target_compile_definitions(nexus-forge PRIVATE TOOLS_IN_DATA_PATH)
