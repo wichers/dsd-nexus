@@ -21,6 +21,7 @@
 
 #include "dsdpcm_constants.h"
 #include <array>
+#include <cstddef>
 #include <vector>
 
 template<typename real_t>

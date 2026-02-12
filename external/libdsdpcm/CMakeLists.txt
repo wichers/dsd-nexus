@@ -20,10 +20,51 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(DSDPCM_USE_TBB)
     set(TBB_FOUND FALSE)
 
-    # Try CMake config first (Windows, installed TBB)
+    # Check for Intel oneAPI TBB installation first
+    if(DEFINED ENV{TBBROOT})
+        set(TBB_ROOT "$ENV{TBBROOT}")
+    elseif(DEFINED ENV{TBB_ROOT})
+        set(TBB_ROOT "$ENV{TBB_ROOT}")
+    elseif(WIN32)
+        # Standard Intel oneAPI installation paths on Windows
+        set(TBB_SEARCH_PATHS
+            "C:/Program Files (x86)/Intel/oneAPI/tbb/latest"
+            "C:/Program Files/Intel/oneAPI/tbb/latest"
+        )
+        foreach(path ${TBB_SEARCH_PATHS})
+            if(EXISTS "${path}/include/tbb/tbb.h")
+                set(TBB_ROOT "${path}")
+                break()
+            endif()
+        endforeach()
+    else()
+        # Standard Intel oneAPI installation paths on Linux
+        set(TBB_SEARCH_PATHS
+            "/opt/intel/oneapi/tbb/latest"
+            "/opt/intel/tbb"
+        )
+        foreach(path ${TBB_SEARCH_PATHS})
+            if(EXISTS "${path}/include/tbb/tbb.h")
+                set(TBB_ROOT "${path}")
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    # Add Intel oneAPI TBB to CMAKE_PREFIX_PATH if found
+    if(TBB_ROOT)
+        message(STATUS "Found Intel oneAPI TBB at: ${TBB_ROOT}")
+        list(APPEND CMAKE_PREFIX_PATH "${TBB_ROOT}")
+    endif()
+
+    # Try CMake config first (Windows, installed TBB, Intel oneAPI)
     find_package(TBB CONFIG QUIET)
     if(TBB_FOUND)
-        message(STATUS "libdsdpcm: TBB support enabled (system CMake config)")
+        if(TBB_ROOT)
+            message(STATUS "libdsdpcm: TBB support enabled (Intel oneAPI)")
+        else()
+            message(STATUS "libdsdpcm: TBB support enabled (system CMake config)")
+        endif()
     else()
         # Try pkg-config (Linux system packages like libtbb-dev)
         find_package(PkgConfig QUIET)

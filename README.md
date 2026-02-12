@@ -62,20 +62,47 @@ The build system will automatically fetch and compile external libraries (FLAC, 
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt install libflac-dev libtbb-dev libmbedtls-dev libfuse3-dev
+sudo apt install pkg-config libflac-dev libtbb-dev libmbedtls-dev libfuse3-dev
 ```
 
 **Fedora/RHEL:**
 ```bash
-sudo dnf install flac-devel tbb-devel mbedtls-devel fuse3-devel
+sudo dnf install pkgconfig flac-devel tbb-devel mbedtls-devel fuse3-devel
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S flac tbb mbedtls fuse3
+sudo pacman -S pkgconf flac tbb mbedtls fuse3
 ```
 
 When these packages are installed, CMake will automatically detect and use them instead of fetching from GitHub. Note: `libfuse3-dev` is required for building the `sacd-mount` FUSE filesystem tool.
+
+### Intel TBB (Optional, Highly Recommended for Performance)
+
+Intel TBB (Threading Building Blocks) provides **highly optimized** parallel programming utilities for multi-threaded performance. Using the official Intel oneAPI TBB can result in **better threading performance** and stability compared to older system package versions.
+
+**Installation:**
+
+Download and install Intel TBB from:
+- https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb-download.html
+
+Or on Ubuntu/Debian via APT:
+```bash
+# Add Intel repository (if not already added)
+wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+sudo apt update
+
+# Install TBB
+sudo apt install intel-oneapi-tbb-devel
+```
+
+After installation, source the environment:
+```bash
+source /opt/intel/oneapi/setvars.sh
+```
+
+CMake will automatically detect and use Intel TBB if available.
 
 ### Intel IPP (Optional, Highly Recommended for Performance)
 
@@ -106,6 +133,37 @@ CMake will automatically detect and use IPP if available. You'll see:
 ```
 -- Found Intel IPP at: /opt/intel/oneapi/ipp/latest
 -- Building dsdpcm_core with Intel IPP optimization (static)
+```
+
+### Qt6 for Nexus Forge GUI (Optional)
+
+Qt6 is required to build the **Nexus Forge** desktop GUI application. If Qt6 is not found, CMake will skip building the GUI and only build the command-line tools and libraries.
+
+**Installation:**
+
+**Ubuntu/Debian:**
+```bash
+sudo apt install qt6-base-dev qt6-tools-dev qt6-tools-dev-tools
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install qt6-qtbase-devel qt6-qttools-devel
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S qt6-base qt6-tools
+```
+
+After installing Qt6, reconfigure CMake to detect it:
+```bash
+cmake -B build
+```
+
+CMake will automatically detect Qt6 and enable building nexus-forge. If Qt6 is not automatically detected, you may need to specify the Qt6 installation path:
+```bash
+cmake -B build -DCMAKE_PREFIX_PATH=/usr/lib/x86_64-linux-gnu/cmake
 ```
 
 ## Building

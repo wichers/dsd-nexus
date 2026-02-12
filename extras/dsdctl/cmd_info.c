@@ -167,7 +167,7 @@ static void print_info_text(dsdpipe_t *pipe, bool verbose)
                         if (meta.track_performer && meta.track_performer[0])
                             printf(" - %s", meta.track_performer);
                         printf("  [%d:%02d]", minutes, seconds);
-                        if (meta.isrc && meta.isrc[0])
+                        if (meta.isrc[0])
                             printf("  ISRC: %s", meta.isrc);
                         printf("\n");
                     } else {

@@ -26,14 +26,9 @@ class dsdpcm_converter_user_t : public dsdpcm_converter_t<real_t> {
 	using dsdpcm_converter_t<real_t>::dsd_filter;
 	using dsdpcm_converter_t<real_t>::pcm_filters;
 	using dsdpcm_converter_t<real_t>::set_buffers;
-	using dsdpcm_converter_t<real_t>::framerate;
-	using dsdpcm_converter_t<real_t>::dsd_samplerate;
-	using dsdpcm_converter_t<real_t>::pcm_samplerate;
-	using dsdpcm_converter_t<real_t>::is_48k;
-	using dsdpcm_converter_t<real_t>::dsd_to_pcm_ratio;
 public:
 	dsdpcm_converter_user_t(dsdpcm_filter_setup_t<real_t>& flt_setup, size_t p_framerate, size_t p_dsd_samplerate, size_t p_pcm_samplerate) : dsdpcm_converter_t<real_t>(p_framerate, p_dsd_samplerate, p_pcm_samplerate) {
-		auto ratio = dsd_to_pcm_ratio;
+		auto ratio = this->dsd_to_pcm_ratio;
 		auto fir_decimation = flt_setup.get_fir1_user_decimation();
 		if (ratio > fir_decimation) {
 			dsd_filter.init(flt_setup.get_fir1_user_ctables(), flt_setup.get_fir1_user_length(), fir_decimation);
@@ -48,7 +43,7 @@ public:
 			ratio /= 2;
 		}
 		if (ratio > 1) {
-			if (is_48k) {
+			if (this->is_48k) {
 				pcm_filters.push_back(new pcmpcm_fir_t(flt_setup.get_fir4_147_80_coefs(), flt_setup.get_fir4_147_80_length(), 147, 80));
 			}
 			else {
@@ -57,10 +52,10 @@ public:
 			ratio /= 2;
 		}
 		else {
-			if (is_48k) {
+			if (this->is_48k) {
 				pcm_filters.push_back(new pcmpcm_fir_t(flt_setup.get_fir4_147_160_coefs(), flt_setup.get_fir4_147_160_length(), 147, 160));
 			}
 		}
-		set_buffers(dsd_samplerate / 8 / framerate);
+		set_buffers(this->dsd_samplerate / 8 / this->framerate);
 	}
 };
