@@ -260,6 +260,10 @@ int sa_mkdir_p(const char *path, const char *base_dir, sa_mode_t mode)
 
     pos = path_copy + base_len;
 
+    /* Skip leading separators for absolute paths */
+    while (*pos && sa_is_path_separator(*pos))
+        pos++;
+
     /* Iterate through path components */
     while (*pos) {
         /* Find next separator */
