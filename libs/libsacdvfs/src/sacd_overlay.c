@@ -147,6 +147,8 @@ sacd_overlay_ctx_t *sacd_overlay_create(const sacd_overlay_config_t *config)
     ctx->stereo_visible = config->stereo_visible;
     ctx->multichannel_visible = config->multichannel_visible;
     ctx->iso_count = 0;
+    ctx->iso_capacity = 0;
+    ctx->iso_mounts = NULL;
 
     if (mtx_init(&ctx->iso_table_lock, mtx_plain) != thrd_success) {
         sa_free(ctx);
@@ -195,6 +197,11 @@ void sacd_overlay_destroy(sacd_overlay_ctx_t *ctx)
             ctx->iso_mounts[i] = NULL;
         }
     }
+
+    sa_free(ctx->iso_mounts);
+    ctx->iso_mounts = NULL;
+    ctx->iso_count = 0;
+    ctx->iso_capacity = 0;
 
     mtx_unlock(&ctx->iso_table_lock);
     mtx_destroy(&ctx->iso_table_lock);

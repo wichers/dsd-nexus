@@ -56,8 +56,8 @@
  * Internal Constants
  * ===========================================================================*/
 
-#define MAX_ISO_MOUNTS          256
-#define COLLISION_SUFFIX_MAX    32
+#define ISO_MOUNTS_INITIAL_CAPACITY  64
+#define COLLISION_SUFFIX_MAX        32
 
 /* =============================================================================
  * Internal Types
@@ -87,9 +87,10 @@ struct sacd_overlay_ctx {
     bool stereo_visible;                        /**< Show stereo area */
     bool multichannel_visible;                  /**< Show multichannel area */
 
-    /* ISO mount table */
-    iso_mount_t *iso_mounts[MAX_ISO_MOUNTS];
+    /* ISO mount table (dynamically grown) */
+    iso_mount_t **iso_mounts;
     int iso_count;
+    int iso_capacity;
 
     mtx_t iso_table_lock;                    /**< Protects iso_mounts array */
     sa_tpool *thread_pool;                      /**< Shared DST decode pool */

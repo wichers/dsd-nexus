@@ -23,6 +23,7 @@
 #include "sacd_overlay_internal.h"
 
 #include <libsautil/mem.h>
+#include <libsautil/log.h>
 #include <libsautil/sastring.h>
 #include <libsautil/compat.h>
 
@@ -159,15 +160,33 @@ iso_mount_t *_overlay_get_or_create_iso(sacd_overlay_ctx_t *ctx,
     }
 
     if (!mount) {
-        /* Check limit */
+        /* Check user-configured soft limit */
         if (ctx->max_open_isos > 0 && ctx->iso_count >= ctx->max_open_isos) {
-            mtx_unlock(&ctx->iso_table_lock);
-            return NULL;  /* Too many ISOs */
-        }
-
-        if (ctx->iso_count >= MAX_ISO_MOUNTS) {
+            sa_log(NULL, SA_LOG_WARNING,
+                   "overlay: user limit reached (%d/%d), cannot mount: %s\n",
+                   ctx->iso_count, ctx->max_open_isos, iso_path);
             mtx_unlock(&ctx->iso_table_lock);
             return NULL;
+        }
+
+        /* Grow array if needed */
+        if (ctx->iso_count >= ctx->iso_capacity) {
+            int new_cap = ctx->iso_capacity ? ctx->iso_capacity * 2
+                                            : ISO_MOUNTS_INITIAL_CAPACITY;
+            iso_mount_t **new_arr = sa_realloc_array(
+                ctx->iso_mounts, (size_t)new_cap, sizeof(iso_mount_t *));
+            if (!new_arr) {
+                sa_log(NULL, SA_LOG_ERROR,
+                       "overlay: failed to grow mount table from %d to %d\n",
+                       ctx->iso_capacity, new_cap);
+                mtx_unlock(&ctx->iso_table_lock);
+                return NULL;
+            }
+            /* Zero the new slots */
+            memset(new_arr + ctx->iso_capacity, 0,
+                   (size_t)(new_cap - ctx->iso_capacity) * sizeof(iso_mount_t *));
+            ctx->iso_mounts = new_arr;
+            ctx->iso_capacity = new_cap;
         }
 
         /* Create new mount entry */
@@ -192,6 +211,10 @@ iso_mount_t *_overlay_get_or_create_iso(sacd_overlay_ctx_t *ctx,
         }
 
         ctx->iso_mounts[ctx->iso_count++] = mount;
+
+        sa_log(NULL, SA_LOG_VERBOSE,
+               "overlay: registered ISO #%d: %s\n",
+               ctx->iso_count, display_name);
     }
 
     mtx_unlock(&ctx->iso_table_lock);
