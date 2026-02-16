@@ -476,10 +476,13 @@ static int _readdir_source_callback(const char *name, int is_dir, void *userdata
 
     /* Check if this is an ISO file - hide it and add as virtual folder */
     if (!is_dir && _overlay_is_iso_file(full_path, rctx->ctx->iso_extensions)) {
-        /* Check if it's a valid SACD */
-        int is_sacd = _overlay_check_sacd_magic(full_path);
-        sa_log(NULL, SA_LOG_DEBUG, "overlay: %s: %s\n",
-               full_path, is_sacd ? "valid SACD" : "not SACD");
+        /* Skip expensive magic check if this ISO is already registered */
+        int is_sacd = (_overlay_find_iso_mount(rctx->ctx, full_path) != NULL);
+        if (!is_sacd) {
+            is_sacd = _overlay_check_sacd_magic(full_path);
+            sa_log(NULL, SA_LOG_DEBUG, "overlay: %s: %s\n",
+                   full_path, is_sacd ? "valid SACD" : "not SACD");
+        }
 
         if (is_sacd) {
             /* Get base name (without .iso) */
