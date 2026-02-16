@@ -416,7 +416,11 @@ int main(int argc, char *argv[])
     if (g_options.debug) {
         ret = fuse_loop(g_fuse);
     } else {
-        ret = fuse_loop_mt(g_fuse, 0);
+        struct fuse_loop_config loop_cfg;
+        memset(&loop_cfg, 0, sizeof(loop_cfg));
+        loop_cfg.clone_fd = 0;
+        loop_cfg.max_idle_threads = 10;
+        ret = fuse_loop_mt(g_fuse, &loop_cfg);
     }
 
     if (ret != 0) {
