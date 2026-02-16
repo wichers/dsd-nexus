@@ -68,6 +68,8 @@ typedef struct iso_mount {
     char iso_path[SACD_OVERLAY_MAX_PATH];       /**< Full path to ISO file */
     char display_name[SACD_OVERLAY_MAX_FILENAME]; /**< Virtual folder name */
     char parent_vpath[SACD_OVERLAY_MAX_PATH];   /**< Virtual parent directory */
+    char iso_vpath[SACD_OVERLAY_MAX_PATH];      /**< Pre-computed virtual path */
+    size_t iso_vpath_len;                       /**< Length of iso_vpath */
     sacd_vfs_ctx_t *vfs;                        /**< libsacdvfs context (lazy) */
     int ref_count;                              /**< Reference count */
     time_t last_access;                         /**< Last access time */

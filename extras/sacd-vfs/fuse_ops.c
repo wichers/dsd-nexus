@@ -294,11 +294,11 @@ static void *fuse_sacd_init(struct fuse_conn_info *conn, struct fuse_config *cfg
 {
     (void)conn;
 
-    cfg->kernel_cache = 0;      /* Disable kernel cache */
-    cfg->auto_cache = 0;        /* Disable auto cache */
-    cfg->entry_timeout = 1.0;   /* 1 second entry cache */
-    cfg->attr_timeout = 1.0;    /* 1 second attr cache */
-    cfg->negative_timeout = 0;  /* Don't cache negative lookups */
+    cfg->kernel_cache = 1;      /* Enable kernel page cache (VFS content is static) */
+    cfg->auto_cache = 0;        /* Don't auto-invalidate (content doesn't change) */
+    cfg->entry_timeout = 300.0; /* 5 min entry cache (directory listing stable) */
+    cfg->attr_timeout = 300.0;  /* 5 min attr cache (file sizes don't change) */
+    cfg->negative_timeout = 60; /* 1 min negative cache (avoid re-probing missing) */
 
     return g_overlay_ctx;
 }
