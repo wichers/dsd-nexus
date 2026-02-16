@@ -34,6 +34,19 @@
 /* Global overlay context */
 static sacd_overlay_ctx_t *g_overlay_ctx = NULL;
 
+/* Periodic idle cleanup */
+static time_t g_last_cleanup = 0;
+#define CLEANUP_INTERVAL_SECONDS 60
+
+static void _maybe_cleanup_idle(void)
+{
+    time_t now = time(NULL);
+    if (g_overlay_ctx && (now - g_last_cleanup) >= CLEANUP_INTERVAL_SECONDS) {
+        g_last_cleanup = now;
+        sacd_overlay_cleanup_idle(g_overlay_ctx);
+    }
+}
+
 /* =============================================================================
  * Context Management
  * ===========================================================================*/
@@ -59,6 +72,8 @@ static int fuse_sacd_getattr(const char *path, fuse_compat_stat_t *stbuf,
                              struct fuse_file_info *fi)
 {
     (void)fi;  /* Not using file info for now */
+
+    _maybe_cleanup_idle();
 
     if (!g_overlay_ctx) {
         return -EIO;
