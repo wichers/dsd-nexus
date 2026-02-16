@@ -148,12 +148,12 @@ set(SACD_VFS_SOURCES
 )
 
 # Create executable
-add_executable(sacd-mount
+add_executable(sacd-vfs
     ${SACD_VFS_SOURCES}
 )
 
 # Include directories
-target_include_directories(sacd-mount
+target_include_directories(sacd-vfs
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${FUSE_INCLUDE_DIRS}
@@ -161,7 +161,7 @@ target_include_directories(sacd-mount
 )
 
 # Compile definitions
-target_compile_definitions(sacd-mount
+target_compile_definitions(sacd-vfs
     PRIVATE
         FUSE_USE_VERSION=35
         _FILE_OFFSET_BITS=64
@@ -171,7 +171,7 @@ target_compile_definitions(sacd-mount
 
 # Platform-specific settings
 if(WIN32)
-    target_compile_definitions(sacd-mount
+    target_compile_definitions(sacd-vfs
         PRIVATE
             _CRT_SECURE_NO_WARNINGS
             WIN32_LEAN_AND_MEAN
@@ -182,7 +182,7 @@ endif()
 # OBJECT libraries don't propagate object files transitively (requires CMake 3.21+),
 # so every OBJECT lib in the dependency chain must be listed explicitly.
 # Dependency chain: libsacdvfs -> libsacd, libdst -> libps3drive -> libsg3 -> sautil
-target_link_libraries(sacd-mount
+target_link_libraries(sacd-vfs
     PRIVATE
         libsacdvfs
         libsacd
@@ -197,22 +197,22 @@ target_link_libraries(sacd-mount
         id3dev
 )
 if(TARGET mbedcrypto)
-    target_link_libraries(sacd-mount PRIVATE mbedcrypto)
+    target_link_libraries(sacd-vfs PRIVATE mbedcrypto)
 elseif(TARGET MbedTLS::mbedcrypto)
-    target_link_libraries(sacd-mount PRIVATE MbedTLS::mbedcrypto)
+    target_link_libraries(sacd-vfs PRIVATE MbedTLS::mbedcrypto)
 endif()
 
 
 # Compiler flags
 if(FUSE_CFLAGS)
-    target_compile_options(sacd-mount
+    target_compile_options(sacd-vfs
         PRIVATE
             ${FUSE_CFLAGS}
     )
 endif()
 
 # Set output directory
-set_target_properties(sacd-mount PROPERTIES
+set_target_properties(sacd-vfs PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/bin/Debug
     RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/bin/Release
     RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_BINARY_DIR}/bin/RelWithDebInfo
@@ -223,10 +223,18 @@ set_target_properties(sacd-mount PROPERTIES
 # Installation
 # =============================================================================
 
-install(TARGETS sacd-mount
+install(TARGETS sacd-vfs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     COMPONENT dsd_clitools
 )
+
+# Also install under sacd_vfs component for standalone Linux packaging
+if(UNIX AND NOT APPLE)
+    install(TARGETS sacd-vfs
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT sacd_vfs
+    )
+endif()
 
 # =============================================================================
 # Usage Information

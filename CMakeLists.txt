@@ -11,7 +11,7 @@ if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 endif()
 
-project(dsd-nexus VERSION 0.1.81 LANGUAGES C CXX)
+project(dsd-nexus VERSION 0.1.82 LANGUAGES C CXX)
 
 # =============================================================================
 # Pitchfork Layout (PFL) Project Structure

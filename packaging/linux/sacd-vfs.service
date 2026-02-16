@@ -1,0 +1,18 @@
+[Unit]
+Description=SACD Virtual Filesystem (FUSE mount)
+Documentation=https://github.com/wichers/dsd-nexus
+After=local-fs.target
+RequiresMountsFor=/etc/sacd-vfs
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/sacd-vfs/sacd-vfs.conf
+ExecStartPre=/bin/mkdir -p ${MOUNT_DIR}
+ExecStart=/usr/lib/sacd-vfs/sacd-vfs-helper.sh
+ExecStop=/usr/bin/fusermount3 -u ${MOUNT_DIR}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

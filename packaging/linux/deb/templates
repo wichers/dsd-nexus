@@ -1,0 +1,32 @@
+Template: sacd-vfs/source_dir
+Type: string
+Default: /media/sacd
+Description: Source directory containing SACD ISO files:
+ Enter the path to the directory that contains your SACD ISO files.
+ This directory will be overlaid with virtual folders for each ISO.
+
+Template: sacd-vfs/mount_dir
+Type: string
+Default: /mnt/sacd
+Description: Mount point for the SACD virtual filesystem:
+ Enter the path where the virtual filesystem should be mounted.
+ The directory will be created if it does not exist.
+
+Template: sacd-vfs/run_user
+Type: string
+Default: root
+Description: User to run the sacd-vfs service as:
+ The systemd service will run as this user. Use 'root' for allow_other
+ FUSE access, or a dedicated user if preferred.
+
+Template: sacd-vfs/stereo
+Type: boolean
+Default: true
+Description: Show stereo tracks?
+ Enable this to expose the stereo area of each SACD disc.
+
+Template: sacd-vfs/multichannel
+Type: boolean
+Default: true
+Description: Show multichannel tracks?
+ Enable this to expose the multichannel (surround) area of each SACD disc.

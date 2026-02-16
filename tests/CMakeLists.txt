@@ -425,3 +425,29 @@ set_tests_properties(sacd_vfs_id3_test PROPERTIES
 if(MSVC)
     target_compile_options(test_sacd_vfs_id3 PRIVATE /W4)
 endif()
+
+# =============================================================================
+# Benchmark Tool: bench_overlay (Overlay API performance benchmark)
+# =============================================================================
+add_executable(bench_overlay
+    bench_overlay.c
+)
+
+# Link against libsacdvfs
+target_link_libraries(bench_overlay PRIVATE libdsd_static)
+
+# Include library headers
+target_include_directories(bench_overlay PRIVATE
+    ${LIBSACDVFS_PRIVATE_DIR}
+    ${SAUTIL_CONFIG_PATH}
+)
+
+# Set output directory
+set_target_properties(bench_overlay PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
+)
+
+# MSVC-specific compiler flags
+if(MSVC)
+    target_compile_options(bench_overlay PRIVATE /W4)
+endif()
