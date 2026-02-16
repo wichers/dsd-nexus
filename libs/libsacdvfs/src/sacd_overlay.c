@@ -24,6 +24,7 @@
 #include "sacd_overlay_internal.h"
 
 #include <libsautil/mem.h>
+#include <libsautil/log.h>
 #include <libsautil/sa_tpool.h>
 #include <libsautil/compat.h>
 #include <libsautil/sastring.h>
@@ -475,12 +476,10 @@ static int _readdir_source_callback(const char *name, int is_dir, void *userdata
 
     /* Check if this is an ISO file - hide it and add as virtual folder */
     if (!is_dir && _overlay_is_iso_file(full_path, rctx->ctx->iso_extensions)) {
-        /* Debug: ISO file detected */
-        fprintf(stderr, "OVERLAY DEBUG: Found ISO file: %s\n", full_path);
-
         /* Check if it's a valid SACD */
         int is_sacd = _overlay_check_sacd_magic(full_path);
-        fprintf(stderr, "OVERLAY DEBUG: SACD magic check: %s\n", is_sacd ? "PASS" : "FAIL");
+        sa_log(NULL, SA_LOG_DEBUG, "overlay: %s: %s\n",
+               full_path, is_sacd ? "valid SACD" : "not SACD");
 
         if (is_sacd) {
             /* Get base name (without .iso) */
@@ -1087,5 +1086,12 @@ int sacd_overlay_cleanup_idle(sacd_overlay_ctx_t *ctx)
     }
 
     mtx_unlock(&ctx->iso_table_lock);
+
+    if (cleaned > 0) {
+        sa_log(NULL, SA_LOG_INFO,
+               "overlay: cleaned up %d idle ISO mount(s), %d registered\n",
+               cleaned, ctx->iso_count);
+    }
+
     return cleaned;
 }
