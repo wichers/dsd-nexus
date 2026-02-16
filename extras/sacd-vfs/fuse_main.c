@@ -410,8 +410,10 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    /* Run FUSE event loop */
-    if (g_options.debug || g_options.foreground) {
+    /* Run FUSE event loop.
+     * Use single-threaded loop only for -d (debug output is unreadable in MT).
+     * Foreground mode (-f) and daemon mode both use multi-threaded. */
+    if (g_options.debug) {
         ret = fuse_loop(g_fuse);
     } else {
         ret = fuse_loop_mt(g_fuse, 0);
