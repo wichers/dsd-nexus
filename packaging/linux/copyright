@@ -1,0 +1,17 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: sacd-vfs
+Upstream-Contact: Alexander Wichers <sander.wichers@gmail.com>
+Source: https://github.com/wichers/dsd-nexus
+
+Files: *
+Copyright: 2024-2026 Alexander Wichers
+License: LGPL-2.1-or-later
+
+License: LGPL-2.1-or-later
+ This library is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as
+ published by the Free Software Foundation; either version 2.1 of the
+ License, or (at your option) any later version.
+ .
+ On Debian systems, the full text of the GNU Lesser General Public
+ License version 2.1 can be found in /usr/share/common-licenses/LGPL-2.1.

@@ -1,0 +1,41 @@
+# Maintainer: Alexander Wichers
+pkgname=sacd-vfs
+pkgver=0.1.81
+pkgrel=1
+pkgdesc='SACD Virtual Filesystem - mount SACD ISOs as directories with DSF files'
+arch=('x86_64' 'aarch64')
+url='https://github.com/wichers/dsd-nexus'
+license=('LGPL-2.1-or-later')
+depends=('fuse3' 'mbedtls' 'bash')
+makedepends=('cmake' 'gcc' 'git')
+backup=('etc/sacd-vfs/sacd-vfs.conf')
+source=("git+https://github.com/wichers/dsd-nexus.git#tag=v${pkgver}")
+sha256sums=('SKIP')
+install="${pkgname}.install"
+
+build() {
+    cmake -B build -S dsd-nexus \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_EXAMPLES=OFF
+    cmake --build build --target sacd-vfs
+}
+
+package() {
+    # Binary
+    install -Dm755 "build/bin/Release/sacd-vfs" \
+        "${pkgdir}/usr/bin/sacd-vfs"
+
+    # Helper script
+    install -Dm755 "dsd-nexus/packaging/linux/sacd-vfs-helper.sh" \
+        "${pkgdir}/usr/lib/sacd-vfs/sacd-vfs-helper.sh"
+
+    # Systemd service
+    install -Dm644 "dsd-nexus/packaging/linux/sacd-vfs.service" \
+        "${pkgdir}/usr/lib/systemd/system/sacd-vfs.service"
+
+    # Config
+    install -Dm644 "dsd-nexus/packaging/linux/sacd-vfs.conf" \
+        "${pkgdir}/etc/sacd-vfs/sacd-vfs.conf"
+}

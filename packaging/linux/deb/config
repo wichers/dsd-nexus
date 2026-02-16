@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+CONF="/etc/sacd-vfs/sacd-vfs.conf"
+
+# Read existing config if upgrading
+if [ -f "$CONF" ]; then
+    . "$CONF"
+    [ -n "$SOURCE_DIR" ] && db_set sacd-vfs/source_dir "$SOURCE_DIR"
+    [ -n "$MOUNT_DIR" ] && db_set sacd-vfs/mount_dir "$MOUNT_DIR"
+    [ -n "$RUN_USER" ] && db_set sacd-vfs/run_user "$RUN_USER"
+    case "$STEREO" in
+        yes) db_set sacd-vfs/stereo true ;;
+        no)  db_set sacd-vfs/stereo false ;;
+    esac
+    case "$MULTICHANNEL" in
+        yes) db_set sacd-vfs/multichannel true ;;
+        no)  db_set sacd-vfs/multichannel false ;;
+    esac
+fi
+
+db_input high sacd-vfs/source_dir || true
+db_go || true
+
+db_input high sacd-vfs/mount_dir || true
+db_go || true
+
+db_input high sacd-vfs/run_user || true
+db_go || true
+
+db_input high sacd-vfs/stereo || true
+db_go || true
+
+db_input high sacd-vfs/multichannel || true
+db_go || true

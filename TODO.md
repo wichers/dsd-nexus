@@ -3,6 +3,8 @@
 * **[ ] Memory & Error Validation**
 * Run comprehensive tests using **Valgrind** on WSL/Linux.
 * Identify and fix memory leaks, buffer overflows, and uninitialized variables.
+* Make dsdctl behave like sacd_extract if no arguments are passed
+* compile on OSX
 
 * **[ ] Standardize Logging Interface**
 * Deprecate direct `fprintf(stderr, ...)` and `printf()` calls.

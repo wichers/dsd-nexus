@@ -1,0 +1,27 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    purge)
+        # Remove configuration
+        rm -rf /etc/sacd-vfs
+        rm -rf /etc/systemd/system/sacd-vfs.service.d
+
+        # Remove debconf data
+        if [ -e /usr/share/debconf/confmodule ]; then
+            . /usr/share/debconf/confmodule
+            db_purge || true
+        fi
+
+        # Reload systemd
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+        fi
+        ;;
+
+    remove)
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+        fi
+        ;;
+esac

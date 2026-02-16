@@ -54,7 +54,7 @@ All library subprojects are compiled as OBJECT libraries and combined into a sin
 - CMake 3.20+
 - MSVC or GCC 11+
 - Qt6 (Core, Gui, Widgets) for nexus-forge GUI (optional -- skipped if not found)
-- WinFSP (Windows) or libfuse3 (Linux) for sacd-mount
+- WinFSP (Windows) or libfuse3 (Linux) for sacd-vfs
 
 ### Optional System Dependencies (Linux)
 
@@ -75,7 +75,7 @@ sudo dnf install pkgconfig flac-devel tbb-devel mbedtls-devel fuse3-devel
 sudo pacman -S pkgconf flac tbb mbedtls fuse3
 ```
 
-When these packages are installed, CMake will automatically detect and use them instead of fetching from GitHub. Note: `libfuse3-dev` is required for building the `sacd-mount` FUSE filesystem tool.
+When these packages are installed, CMake will automatically detect and use them instead of fetching from GitHub. Note: `libfuse3-dev` is required for building the `sacd-vfs` FUSE filesystem tool.
 
 ### Intel TBB (Optional, Highly Recommended for Performance)
 
@@ -226,7 +226,7 @@ The installer presents three selectable components:
 | Component | Contents | Default |
 |-----------|----------|---------|
 | **Nexus Forge Application** | nexus-forge.exe, dsd.dll, Qt6 runtime DLLs and plugins | Always installed |
-| **Command-Line Tools** | dsdctl.exe, ps3drive-tool.exe, sacd-mount.exe | Selected |
+| **Command-Line Tools** | dsdctl.exe, ps3drive-tool.exe, sacd-vfs.exe | Selected |
 | **Development Files** | C headers, dsd.lib import library, pkg-config and CMake config files | Not selected |
 
 ### How It Works
@@ -243,6 +243,71 @@ If QtIFW is not installed, you can still create a tarball/zip:
 cd build
 cpack -G TGZ -C Release
 ```
+
+## Building Linux Packages (sacd-vfs)
+
+The `sacd-vfs` FUSE daemon can be packaged as `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL/openSUSE), or Arch Linux packages. A devcontainer is provided for building packages from Windows or any Docker-capable host.
+
+### Using the Devcontainer
+
+Build the Docker image once:
+
+```bash
+docker build -t sacd-vfs-pkg .devcontainer/
+```
+
+Then build packages inside the container:
+
+```bash
+docker run --rm -v "$(pwd):/workspace" sacd-vfs-pkg bash -c '
+    dos2unix packaging/linux/deb/* packaging/linux/rpm/* packaging/linux/*.sh \
+             packaging/linux/*.service packaging/linux/*.conf
+    cmake -B build-pkg -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+          -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DSACD_VFS_ONLY=ON
+    cmake --build build-pkg --target sacd-vfs -j$(nproc)
+    cd build-pkg && cpack -G DEB -C Release
+'
+```
+
+Replace `-G DEB` with `-G RPM` for an RPM package, or `-G TGZ` for a tarball.
+
+### Building on a Native Linux Host
+
+```bash
+sudo apt install libfuse3-dev libmbedtls-dev   # Debian/Ubuntu
+cmake -B build-pkg -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+      -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DSACD_VFS_ONLY=ON
+cmake --build build-pkg --target sacd-vfs -j$(nproc)
+cd build-pkg && cpack -G DEB -C Release
+```
+
+### Building the Arch Package
+
+```bash
+cd packaging/arch
+makepkg -s
+```
+
+Or from a non-Arch host with Docker:
+
+```bash
+docker run --rm -v "$(pwd):/workspace:ro" archlinux:latest bash -c '
+    pacman -Syu --noconfirm base-devel cmake fuse3 mbedtls
+    useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+    cp -r /workspace /home/builder/src && chown -R builder:builder /home/builder/src
+    su - builder -c "cd /home/builder/src/packaging/arch && makepkg -s --noconfirm"
+'
+```
+
+### Package Features
+
+The `.deb` package includes interactive configuration via debconf:
+- Source directory (SACD ISO location)
+- Mount point
+- Service user
+- Stereo/multichannel area visibility
+
+Configuration is stored in `/etc/sacd-vfs/sacd-vfs.conf` and can be reconfigured with `dpkg-reconfigure sacd-vfs`. The systemd service (`sacd-vfs.service`) is enabled automatically on install.
 
 ## License
 

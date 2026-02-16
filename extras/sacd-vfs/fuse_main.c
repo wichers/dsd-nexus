@@ -5,7 +5,7 @@
  * @brief SACD FUSE Mount - Main Entry Point
  * Command-line interface for mounting SACD overlay filesystem using FUSE.
  * Works with both native libfuse3 (Linux/macOS) and WinFSP (Windows).
- * Usage: sacd-mount [options] <source_dir> <mount_point>
+ * Usage: sacd-vfs [options] <source_dir> <mount_point>
  *
  * DSD-Nexus is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public

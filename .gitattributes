@@ -1,0 +1,4 @@
+# Force LF line endings for packaging scripts (required for Linux .deb/.rpm)
+packaging/linux/**  text eol=lf
+packaging/arch/**   text eol=lf
+.devcontainer/**    text eol=lf

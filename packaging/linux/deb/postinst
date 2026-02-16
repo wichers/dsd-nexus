@@ -1,0 +1,111 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+CONF="/etc/sacd-vfs/sacd-vfs.conf"
+
+case "$1" in
+    configure)
+        # Read debconf answers
+        db_get sacd-vfs/source_dir
+        SOURCE_DIR="$RET"
+
+        db_get sacd-vfs/mount_dir
+        MOUNT_DIR="$RET"
+
+        db_get sacd-vfs/run_user
+        RUN_USER="$RET"
+
+        db_get sacd-vfs/stereo
+        case "$RET" in
+            true)  STEREO=yes ;;
+            false) STEREO=no ;;
+        esac
+
+        db_get sacd-vfs/multichannel
+        case "$RET" in
+            true)  MULTICHANNEL=yes ;;
+            false) MULTICHANNEL=no ;;
+        esac
+
+        # Preserve advanced settings from existing config
+        THREADS=0
+        CACHE_TIMEOUT=3600
+        MAX_ISOS=0
+        EXTRA_OPTS=""
+        if [ -f "$CONF" ]; then
+            _old_SOURCE_DIR="$SOURCE_DIR"
+            _old_MOUNT_DIR="$MOUNT_DIR"
+            _old_RUN_USER="$RUN_USER"
+            _old_STEREO="$STEREO"
+            _old_MULTICHANNEL="$MULTICHANNEL"
+            . "$CONF" 2>/dev/null || true
+            # Restore debconf answers (they take priority)
+            SOURCE_DIR="$_old_SOURCE_DIR"
+            MOUNT_DIR="$_old_MOUNT_DIR"
+            RUN_USER="$_old_RUN_USER"
+            STEREO="$_old_STEREO"
+            MULTICHANNEL="$_old_MULTICHANNEL"
+        fi
+
+        # Write config
+        mkdir -p /etc/sacd-vfs
+        cat > "$CONF" <<EOF
+# sacd-vfs configuration
+# This file is sourced by the systemd service.
+# After editing, restart with: systemctl restart sacd-vfs
+
+# Source directory containing SACD ISO files
+SOURCE_DIR=$SOURCE_DIR
+
+# Mount point (created automatically if missing)
+MOUNT_DIR=$MOUNT_DIR
+
+# User to run the service as
+RUN_USER=$RUN_USER
+
+# Area visibility: yes or no
+STEREO=$STEREO
+MULTICHANNEL=$MULTICHANNEL
+
+# Number of DST decoder threads (0 = auto)
+THREADS=$THREADS
+
+# ISO cache timeout in seconds (0 = no eviction)
+CACHE_TIMEOUT=$CACHE_TIMEOUT
+
+# Maximum concurrent ISO mounts (0 = unlimited)
+MAX_ISOS=$MAX_ISOS
+
+# Additional sacd-vfs options (passed verbatim)
+EXTRA_OPTS=$EXTRA_OPTS
+EOF
+
+        # Create mount point
+        mkdir -p "$MOUNT_DIR"
+        chown "$RUN_USER" "$MOUNT_DIR"
+
+        # Write systemd override for User/Group
+        # (systemd does not expand env vars in User= directives)
+        mkdir -p /etc/systemd/system/sacd-vfs.service.d
+        cat > /etc/systemd/system/sacd-vfs.service.d/user.conf <<OVERRIDE
+[Service]
+User=$RUN_USER
+Group=$RUN_USER
+OVERRIDE
+
+        # Reload systemd and enable service
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload
+            systemctl enable sacd-vfs.service
+            # Only start if source dir exists
+            if [ -d "$SOURCE_DIR" ]; then
+                systemctl restart sacd-vfs.service || true
+            else
+                echo "Note: Source directory $SOURCE_DIR does not exist yet."
+                echo "      The service will start once it becomes available."
+            fi
+        fi
+        ;;
+esac
