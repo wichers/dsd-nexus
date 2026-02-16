@@ -508,8 +508,12 @@ static int _readdir_source_callback(const char *name, int is_dir, void *userdata
             _add_seen_name(rctx, display_name);
 
             /* Register ISO mount */
-            _overlay_get_or_create_iso(rctx->ctx, full_path, rctx->vpath,
-                                       display_name, collision_idx);
+            iso_mount_t *iso = _overlay_get_or_create_iso(
+                rctx->ctx, full_path, rctx->vpath,
+                display_name, collision_idx);
+            if (!iso) {
+                return 0;  /* Mount failed, skip this entry */
+            }
 
             /* Add as directory entry */
             sacd_overlay_entry_t entry;
