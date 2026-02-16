@@ -23,6 +23,7 @@
 #include "sacd_overlay_internal.h"
 
 #include <libsautil/mem.h>
+#include <libsautil/log.h>
 #include <libsautil/sastring.h>
 #include <libsautil/compat.h>
 
@@ -42,20 +43,25 @@
 
 /**
  * Find an existing ISO mount by its source path.
+ * Thread-safe: acquires iso_table_lock internally.
  */
 iso_mount_t *_overlay_find_iso_mount(sacd_overlay_ctx_t *ctx, const char *iso_path)
 {
     if (!ctx || !iso_path) return NULL;
 
-    /* Caller should hold iso_table_lock, but we'll be defensive */
+    mtx_lock(&ctx->iso_table_lock);
 
+    iso_mount_t *found = NULL;
     for (int i = 0; i < ctx->iso_count; i++) {
         iso_mount_t *mount = ctx->iso_mounts[i];
         if (mount && strcmp(mount->iso_path, iso_path) == 0) {
-            return mount;
+            found = mount;
+            break;
         }
     }
-    return NULL;
+
+    mtx_unlock(&ctx->iso_table_lock);
+    return found;
 }
 
 /**
@@ -91,39 +97,17 @@ iso_mount_t *_overlay_find_iso_by_vpath(sacd_overlay_ctx_t *ctx, const char *vpa
 
     for (int i = 0; i < ctx->iso_count; i++) {
         iso_mount_t *mount = ctx->iso_mounts[i];
-        if (!mount) continue;
+        if (!mount || mount->iso_vpath_len == 0) continue;
 
-        /* Build expected virtual path for this ISO folder */
-        char iso_vpath[SACD_OVERLAY_MAX_PATH];
-        if (strcmp(mount->parent_vpath, "/") == 0) {
-            /* Validate: "/" + display_name fits in buffer */
-            size_t display_len = strlen(mount->display_name);
-            if (1 + display_len >= SACD_OVERLAY_MAX_PATH) {
-                continue;  /* Path too long, skip this mount */
-            }
-            sa_snprintf(iso_vpath, sizeof(iso_vpath), "/%s", mount->display_name);
-        } else {
-            /* Validate: parent_vpath + "/" + display_name fits in buffer */
-            size_t parent_len = strlen(mount->parent_vpath);
-            size_t display_len = strlen(mount->display_name);
-            if (parent_len + 1 + display_len >= SACD_OVERLAY_MAX_PATH) {
-                continue;  /* Path too long, skip this mount */
-            }
-            sa_snprintf(iso_vpath, sizeof(iso_vpath), "%s/%s",
-                        mount->parent_vpath, mount->display_name);
-        }
-
-        size_t iso_vpath_len = strlen(iso_vpath);
-
-        /* Check if vpath starts with or equals iso_vpath */
-        if (strncmp(norm_path, iso_vpath, iso_vpath_len) == 0) {
+        /* Use pre-computed virtual path for fast comparison */
+        if (strncmp(norm_path, mount->iso_vpath, mount->iso_vpath_len) == 0) {
             /* Must be exact match or followed by / */
-            if (norm_path[iso_vpath_len] == '\0' ||
-                norm_path[iso_vpath_len] == '/') {
+            if (norm_path[mount->iso_vpath_len] == '\0' ||
+                norm_path[mount->iso_vpath_len] == '/') {
                 /* Prefer longer matches (more specific paths) */
-                if (iso_vpath_len > best_match_len) {
+                if (mount->iso_vpath_len > best_match_len) {
                     found = mount;
-                    best_match_len = iso_vpath_len;
+                    best_match_len = mount->iso_vpath_len;
                 }
             }
         }
@@ -159,15 +143,33 @@ iso_mount_t *_overlay_get_or_create_iso(sacd_overlay_ctx_t *ctx,
     }
 
     if (!mount) {
-        /* Check limit */
+        /* Check user-configured soft limit */
         if (ctx->max_open_isos > 0 && ctx->iso_count >= ctx->max_open_isos) {
-            mtx_unlock(&ctx->iso_table_lock);
-            return NULL;  /* Too many ISOs */
-        }
-
-        if (ctx->iso_count >= MAX_ISO_MOUNTS) {
+            sa_log(NULL, SA_LOG_WARNING,
+                   "overlay: user limit reached (%d/%d), cannot mount: %s\n",
+                   ctx->iso_count, ctx->max_open_isos, iso_path);
             mtx_unlock(&ctx->iso_table_lock);
             return NULL;
+        }
+
+        /* Grow array if needed */
+        if (ctx->iso_count >= ctx->iso_capacity) {
+            int new_cap = ctx->iso_capacity ? ctx->iso_capacity * 2
+                                            : ISO_MOUNTS_INITIAL_CAPACITY;
+            iso_mount_t **new_arr = sa_realloc_array(
+                ctx->iso_mounts, (size_t)new_cap, sizeof(iso_mount_t *));
+            if (!new_arr) {
+                sa_log(NULL, SA_LOG_ERROR,
+                       "overlay: failed to grow mount table from %d to %d\n",
+                       ctx->iso_capacity, new_cap);
+                mtx_unlock(&ctx->iso_table_lock);
+                return NULL;
+            }
+            /* Zero the new slots */
+            memset(new_arr + ctx->iso_capacity, 0,
+                   (size_t)(new_cap - ctx->iso_capacity) * sizeof(iso_mount_t *));
+            ctx->iso_mounts = new_arr;
+            ctx->iso_capacity = new_cap;
         }
 
         /* Create new mount entry */
@@ -181,6 +183,16 @@ iso_mount_t *_overlay_get_or_create_iso(sacd_overlay_ctx_t *ctx,
         sa_strlcpy(mount->display_name, display_name, sizeof(mount->display_name));
         sa_strlcpy(mount->parent_vpath, parent_vpath, sizeof(mount->parent_vpath));
         mount->collision_index = collision_index;
+
+        /* Pre-compute virtual path for fast lookup */
+        if (strcmp(parent_vpath, "/") == 0) {
+            sa_snprintf(mount->iso_vpath, sizeof(mount->iso_vpath),
+                        "/%s", display_name);
+        } else {
+            sa_snprintf(mount->iso_vpath, sizeof(mount->iso_vpath),
+                        "%s/%s", parent_vpath, display_name);
+        }
+        mount->iso_vpath_len = strlen(mount->iso_vpath);
         mount->vfs = NULL;  /* Lazy loaded */
         mount->ref_count = 0;
         mount->last_access = time(NULL);
@@ -192,6 +204,10 @@ iso_mount_t *_overlay_get_or_create_iso(sacd_overlay_ctx_t *ctx,
         }
 
         ctx->iso_mounts[ctx->iso_count++] = mount;
+
+        sa_log(NULL, SA_LOG_VERBOSE,
+               "overlay: registered ISO #%d: %s\n",
+               ctx->iso_count, display_name);
     }
 
     mtx_unlock(&ctx->iso_table_lock);
@@ -210,6 +226,10 @@ sacd_vfs_ctx_t *_overlay_ensure_iso_mounted(sacd_overlay_ctx_t *ctx, iso_mount_t
 
     if (!mount->vfs) {
         /* Create VFS context */
+        time_t t0 = time(NULL);
+        sa_log(NULL, SA_LOG_VERBOSE,
+               "overlay: mounting ISO: %s\n", mount->display_name);
+
         mount->vfs = sacd_vfs_create();
         if (mount->vfs) {
             /* Apply area visibility settings from overlay context */
@@ -220,9 +240,19 @@ sacd_vfs_ctx_t *_overlay_ensure_iso_mounted(sacd_overlay_ctx_t *ctx, iso_mount_t
 
             int result = sacd_vfs_open(mount->vfs, mount->iso_path);
             if (result != SACD_VFS_OK) {
+                sa_log(NULL, SA_LOG_WARNING,
+                       "overlay: failed to mount ISO: %s (error %d)\n",
+                       mount->display_name, result);
                 sacd_vfs_destroy(mount->vfs);
                 mount->vfs = NULL;
             }
+        }
+
+        time_t elapsed = time(NULL) - t0;
+        if (elapsed >= 2) {
+            sa_log(NULL, SA_LOG_WARNING,
+                   "overlay: slow mount (%lds): %s\n",
+                   (long)elapsed, mount->display_name);
         }
     }
 

@@ -24,6 +24,7 @@
 #include "sacd_overlay_internal.h"
 
 #include <libsautil/mem.h>
+#include <libsautil/log.h>
 #include <libsautil/sa_tpool.h>
 #include <libsautil/compat.h>
 #include <libsautil/sastring.h>
@@ -147,6 +148,8 @@ sacd_overlay_ctx_t *sacd_overlay_create(const sacd_overlay_config_t *config)
     ctx->stereo_visible = config->stereo_visible;
     ctx->multichannel_visible = config->multichannel_visible;
     ctx->iso_count = 0;
+    ctx->iso_capacity = 0;
+    ctx->iso_mounts = NULL;
 
     if (mtx_init(&ctx->iso_table_lock, mtx_plain) != thrd_success) {
         sa_free(ctx);
@@ -195,6 +198,11 @@ void sacd_overlay_destroy(sacd_overlay_ctx_t *ctx)
             ctx->iso_mounts[i] = NULL;
         }
     }
+
+    sa_free(ctx->iso_mounts);
+    ctx->iso_mounts = NULL;
+    ctx->iso_count = 0;
+    ctx->iso_capacity = 0;
 
     mtx_unlock(&ctx->iso_table_lock);
     mtx_destroy(&ctx->iso_table_lock);
@@ -468,12 +476,13 @@ static int _readdir_source_callback(const char *name, int is_dir, void *userdata
 
     /* Check if this is an ISO file - hide it and add as virtual folder */
     if (!is_dir && _overlay_is_iso_file(full_path, rctx->ctx->iso_extensions)) {
-        /* Debug: ISO file detected */
-        fprintf(stderr, "OVERLAY DEBUG: Found ISO file: %s\n", full_path);
-
-        /* Check if it's a valid SACD */
-        int is_sacd = _overlay_check_sacd_magic(full_path);
-        fprintf(stderr, "OVERLAY DEBUG: SACD magic check: %s\n", is_sacd ? "PASS" : "FAIL");
+        /* Skip expensive magic check if this ISO is already registered */
+        int is_sacd = (_overlay_find_iso_mount(rctx->ctx, full_path) != NULL);
+        if (!is_sacd) {
+            is_sacd = _overlay_check_sacd_magic(full_path);
+            sa_log(NULL, SA_LOG_DEBUG, "overlay: %s: %s\n",
+                   full_path, is_sacd ? "valid SACD" : "not SACD");
+        }
 
         if (is_sacd) {
             /* Get base name (without .iso) */
@@ -501,8 +510,12 @@ static int _readdir_source_callback(const char *name, int is_dir, void *userdata
             _add_seen_name(rctx, display_name);
 
             /* Register ISO mount */
-            _overlay_get_or_create_iso(rctx->ctx, full_path, rctx->vpath,
-                                       display_name, collision_idx);
+            iso_mount_t *iso = _overlay_get_or_create_iso(
+                rctx->ctx, full_path, rctx->vpath,
+                display_name, collision_idx);
+            if (!iso) {
+                return 0;  /* Mount failed, skip this entry */
+            }
 
             /* Add as directory entry */
             sacd_overlay_entry_t entry;
@@ -1076,5 +1089,12 @@ int sacd_overlay_cleanup_idle(sacd_overlay_ctx_t *ctx)
     }
 
     mtx_unlock(&ctx->iso_table_lock);
+
+    if (cleaned > 0) {
+        sa_log(NULL, SA_LOG_INFO,
+               "overlay: cleaned up %d idle ISO mount(s), %d registered\n",
+               cleaned, ctx->iso_count);
+    }
+
     return cleaned;
 }

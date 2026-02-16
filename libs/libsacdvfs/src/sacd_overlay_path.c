@@ -23,6 +23,7 @@
 #include "sacd_overlay_internal.h"
 
 #include <libsacd/sacd.h>
+#include <libsautil/log.h>
 #include <libsautil/sastring.h>
 
 #include <stdio.h>
@@ -202,7 +203,7 @@ int _overlay_check_sacd_magic(const char *path)
      */
     sacd_t *reader = sacd_create();
     if (!reader) {
-        fprintf(stderr, "OVERLAY DEBUG: Failed to create reader for: %s\n", path);
+        sa_log(NULL, SA_LOG_DEBUG, "overlay: failed to create reader for: %s\n", path);
         return 0;
     }
 
@@ -213,8 +214,8 @@ int _overlay_check_sacd_magic(const char *path)
 
     int is_sacd = (result == SACD_OK);
 
-    fprintf(stderr, "OVERLAY DEBUG: libsacd check for %s: %s\n",
-            path, is_sacd ? "VALID SACD" : "NOT SACD");
+    sa_log(NULL, SA_LOG_DEBUG, "overlay: %s: %s\n",
+           path, is_sacd ? "valid SACD" : "not SACD");
 
     /* Clean up */
     if (is_sacd) {
