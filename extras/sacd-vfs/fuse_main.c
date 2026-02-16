@@ -24,6 +24,7 @@
 #include "fuse_ops.h"
 
 #include <libsacdvfs/sacd_overlay.h>
+#include <libsautil/log.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -316,6 +317,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 #endif
+
+    /* Configure log level */
+    if (g_options.debug) {
+        sa_log_set_level(SA_LOG_DEBUG);
+    }
 
     /* Create overlay context */
     sacd_overlay_config_t config;
