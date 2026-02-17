@@ -15,7 +15,7 @@
 
 set(CPACK_PACKAGE_NAME "nexus-forge")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_VENDOR "Nexus Forge")
+set(CPACK_PACKAGE_VENDOR "DSD Nexus")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "DSD Audio Toolkit - Convert, extract, and manage DSD audio")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/wichers/dsd-nexus")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
@@ -69,9 +69,9 @@ endif()
 
 # -- IFW-specific configuration -----------------------------------------------
 
-set(CPACK_IFW_PACKAGE_TITLE "Nexus Forge ${PROJECT_VERSION}")
-set(CPACK_IFW_PACKAGE_NAME "Nexus Forge")
-set(CPACK_IFW_PACKAGE_PUBLISHER "Nexus Forge")
+set(CPACK_IFW_PACKAGE_TITLE "DSD Nexus ${PROJECT_VERSION}")
+set(CPACK_IFW_PACKAGE_NAME "DSD Nexus")
+set(CPACK_IFW_PACKAGE_PUBLISHER "DSD Nexus")
 set(CPACK_IFW_PACKAGE_WIZARD_STYLE "Modern")
 set(CPACK_IFW_PACKAGE_MAINTENANCE_TOOL_NAME "maintenancetool")
 
@@ -84,13 +84,13 @@ endif()
 
 # Default install location
 if(WIN32 OR APPLE)
-    set(CPACK_IFW_TARGET_DIRECTORY "@ApplicationsDir@/Nexus Forge")
+    set(CPACK_IFW_TARGET_DIRECTORY "@ApplicationsDir@/DSD Nexus")
 else()
     set(CPACK_IFW_TARGET_DIRECTORY "@HomeDir@/nexus-forge")
 endif()
 
 # Allow users to add start menu / desktop shortcuts
-set(CPACK_IFW_PACKAGE_START_MENU_DIRECTORY "Nexus Forge")
+set(CPACK_IFW_PACKAGE_START_MENU_DIRECTORY "DSD Nexus")
 
 # =============================================================================
 # Linux packaging: DEB / RPM for sacd-vfs

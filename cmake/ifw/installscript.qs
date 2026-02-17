@@ -23,9 +23,9 @@ Component.prototype.createOperations = function()
         // Start Menu shortcut for Maintenance Tool (uninstall/update)
         component.addOperation("CreateShortcut",
             "@TargetDir@/maintenancetool.exe",
-            "@StartMenuDir@/Uninstall Nexus Forge.lnk",
+            "@StartMenuDir@/Uninstall DSD Nexus.lnk",
             "workingDirectory=@TargetDir@",
-            "description=Uninstall or update Nexus Forge");
+            "description=Uninstall or update DSD Nexus");
 
     } else if (systemInfo.productType === "osx" || systemInfo.productType === "macos") {
         // Move the .app bundle to /Applications as a real app (not a symlink)
