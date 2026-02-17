@@ -53,7 +53,18 @@ if(WIN32)
     endif()
     set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${_arch}-setup")
 elseif(APPLE)
-    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-macos-arm64-setup")
+    # Detect architecture for installer filename
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64" AND CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+        set(_mac_arch "universal")
+    elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+        set(_mac_arch "x86_64")
+    elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+        set(_mac_arch "arm64")
+    else()
+        # No explicit arch set: use the host architecture
+        execute_process(COMMAND uname -m OUTPUT_VARIABLE _mac_arch OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-macos-${_mac_arch}-setup")
 endif()
 
 # -- IFW-specific configuration -----------------------------------------------
