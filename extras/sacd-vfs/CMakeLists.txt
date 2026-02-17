@@ -82,7 +82,13 @@ else()
 
     if(FUSE_USE_INSTALLED)
         # Use system-installed FUSE (recommended)
-        find_package(PkgConfig REQUIRED)
+        find_package(PkgConfig QUIET)
+        if(NOT PkgConfig_FOUND)
+            message(STATUS "sacd-vfs: pkg-config not found, cannot detect FUSE")
+            message(STATUS "  Install pkg-config or set -DFUSE_USE_INSTALLED=OFF")
+            message(STATUS "  Skipping sacd-vfs build")
+            return()
+        endif()
 
         # Try fuse3 first, then macFUSE (fuse-t), then fuse
         pkg_check_modules(FUSE3 fuse3)
@@ -203,14 +209,16 @@ set(_sacd_vfs_libs libsacdvfs libsacd libdst sautil)
 if(BUILD_PS3DRIVE)
     list(APPEND _sacd_vfs_libs libps3drive libsg3)
 endif()
+set(_sacd_vfs_ext_deps id3dev)
+if(BUILD_PS3DRIVE)
+    list(APPEND _sacd_vfs_ext_deps nanopb tinycsocket)
+endif()
 target_link_libraries(sacd-vfs
     PRIVATE
         ${_sacd_vfs_libs}
         ${FUSE_LIBRARIES}
         # External deps of OBJECT libraries that don't propagate transitively
-        nanopb
-        tinycsocket
-        id3dev
+        ${_sacd_vfs_ext_deps}
 )
 if(NOT BUILD_PS3DRIVE)
     target_compile_definitions(sacd-vfs PRIVATE SACD_NO_PS3DRIVE)
