@@ -109,6 +109,10 @@ elseif(APPLE)
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_ICON_FILE "appicon.icns"
+        # Use @rpath-relative linking; macdeployqt rewrites rpaths when
+        # bundling frameworks so CPack install_name_tool won't find stale paths.
+        INSTALL_RPATH "@executable_path/../Frameworks"
+        BUILD_WITH_INSTALL_RPATH FALSE
     )
     # Copy .icns into the bundle's Resources directory
     set(_icns_file "${CMAKE_CURRENT_SOURCE_DIR}/icons/appicon.icns")
