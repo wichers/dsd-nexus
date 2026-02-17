@@ -335,8 +335,18 @@ if(MSVC)
 else()
     # Force include system time.h first to prevent local time.h from shadowing it
     if(APPLE)
-        # macOS: headers are in the SDK, use the compiler's default search path
-        target_compile_options(sautil PRIVATE -include time.h)
+        # macOS: system headers are inside the SDK, find the path via xcrun
+        execute_process(
+            COMMAND xcrun --show-sdk-path
+            OUTPUT_VARIABLE _macos_sdk_path
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_macos_sdk_path)
+            target_compile_options(sautil PRIVATE -include "${_macos_sdk_path}/usr/include/time.h")
+        else()
+            target_compile_options(sautil PRIVATE -include time.h)
+        endif()
     else()
         target_compile_options(sautil PRIVATE -include /usr/include/time.h)
     endif()
