@@ -14,7 +14,6 @@
 #include <QDialog>
 
 QT_BEGIN_NAMESPACE
-class QComboBox;
 class QLineEdit;
 class QLabel;
 class QProgressBar;
@@ -28,10 +27,10 @@ class Ps3DriveWorker;
 #endif
 
 /**
- * @brief Dialog for extracting SACD disc images from PS3 drives or network.
+ * @brief Dialog for extracting SACD disc images.
  *
- * Input can be a local device path (e.g. D: on Windows, /dev/sr0 on Linux)
- * or a PS3 network address (host:port).
+ * Input can be an ISO file path, device path, or network address.
+ * The input type is auto-detected by sacd_input_open().
  *
  * Output is a raw ISO image file.
  */
@@ -57,13 +56,7 @@ private slots:
 
 private:
     // Input
-#ifndef SACD_NO_PS3DRIVE
-    QComboBox *m_cboInputMode;
-#endif
     QLineEdit *m_editDevicePath;
-#ifndef SACD_NO_PS3DRIVE
-    QLineEdit *m_editNetworkAddr;
-#endif
 
     // Output
     QLineEdit *m_editOutputPath;
