@@ -13,7 +13,7 @@
 
 # -- CPack metadata -----------------------------------------------------------
 
-set(CPACK_PACKAGE_NAME "nexus-forge")
+set(CPACK_PACKAGE_NAME "dsd-nexus")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
 set(CPACK_PACKAGE_VENDOR "DSD Nexus")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "DSD Audio Toolkit - Convert, extract, and manage DSD audio")
