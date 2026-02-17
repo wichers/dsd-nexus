@@ -82,21 +82,34 @@ else()
 
     if(FUSE_USE_INSTALLED)
         # Use system-installed FUSE (recommended)
+        set(FUSE3_FOUND FALSE)
+
+        # Try pkg-config first
         find_package(PkgConfig QUIET)
-        if(NOT PkgConfig_FOUND)
-            message(STATUS "sacd-vfs: pkg-config not found, cannot detect FUSE")
-            message(STATUS "  Install pkg-config or set -DFUSE_USE_INSTALLED=OFF")
-            message(STATUS "  Skipping sacd-vfs build")
-            return()
+        if(PkgConfig_FOUND)
+            pkg_check_modules(FUSE3 fuse3)
+            if(NOT FUSE3_FOUND AND APPLE)
+                set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/opt/homebrew/lib/pkgconfig")
+                pkg_check_modules(FUSE3 fuse)
+            endif()
         endif()
 
-        # Try fuse3 first, then macFUSE (fuse-t), then fuse
-        pkg_check_modules(FUSE3 fuse3)
+        # macOS fallback: detect macFUSE directly without pkg-config
         if(NOT FUSE3_FOUND AND APPLE)
-            # macFUSE installs as "fuse" via pkg-config at /usr/local/lib/pkgconfig
-            # or via Homebrew at typical brew prefixes
-            set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/opt/homebrew/lib/pkgconfig")
-            pkg_check_modules(FUSE3 fuse)
+            find_path(_macfuse_inc NAMES fuse3/fuse.h
+                PATHS /usr/local/include /opt/homebrew/include
+                NO_DEFAULT_PATH
+            )
+            find_library(_macfuse_lib NAMES fuse3
+                PATHS /usr/local/lib /opt/homebrew/lib
+                NO_DEFAULT_PATH
+            )
+            if(_macfuse_inc AND _macfuse_lib)
+                set(FUSE3_FOUND TRUE)
+                set(FUSE3_INCLUDE_DIRS "${_macfuse_inc}")
+                set(FUSE3_LIBRARIES "${_macfuse_lib}")
+                set(FUSE3_CFLAGS_OTHER "-D_FILE_OFFSET_BITS=64")
+            endif()
         endif()
 
         if(NOT FUSE3_FOUND)
