@@ -81,8 +81,13 @@ void ExtractDialog::slotStartExtract()
     QString output = m_editOutputPath->text().trimmed();
 
     if (input.isEmpty()) {
+#ifndef SACD_NO_PS3DRIVE
         QMessageBox::warning(this, tr("Missing Input"),
                              tr("Please specify a device path or network address."));
+#else
+        QMessageBox::warning(this, tr("Missing Input"),
+                             tr("Please specify a device or ISO file path."));
+#endif
         return;
     }
 
@@ -189,6 +194,7 @@ void ExtractDialog::setupUi()
         QGroupBox *grp = new QGroupBox(tr("Input Source"), this);
         QVBoxLayout *grpLay = new QVBoxLayout(grp);
 
+#ifndef SACD_NO_PS3DRIVE
         QHBoxLayout *modeRow = new QHBoxLayout();
         modeRow->addWidget(new QLabel(tr("Mode:"), grp));
         m_cboInputMode = new QComboBox(grp);
@@ -196,6 +202,7 @@ void ExtractDialog::setupUi()
         m_cboInputMode->addItem(tr("Network (PS3 Server)"), 1);
         modeRow->addWidget(m_cboInputMode, 1);
         grpLay->addLayout(modeRow);
+#endif
 
         QFormLayout *inputForm = new QFormLayout();
 
@@ -207,9 +214,11 @@ void ExtractDialog::setupUi()
 #endif
         inputForm->addRow(tr("Device:"), m_editDevicePath);
 
+#ifndef SACD_NO_PS3DRIVE
         m_editNetworkAddr = new QLineEdit(grp);
         m_editNetworkAddr->setPlaceholderText(tr("e.g. 192.168.1.100:2002"));
         inputForm->addRow(tr("Address:"), m_editNetworkAddr);
+#endif
 
         grpLay->addLayout(inputForm);
 
@@ -225,6 +234,7 @@ void ExtractDialog::setupUi()
 
         mainLayout->addWidget(grp);
 
+#ifndef SACD_NO_PS3DRIVE
         // Enable/disable fields based on mode, clear the inactive field
         auto updateInputMode = [this](int index) {
             bool isDevice = (index == 0);
@@ -234,28 +244,21 @@ void ExtractDialog::setupUi()
                 m_editNetworkAddr->clear();
             else
                 m_editDevicePath->clear();
-#ifndef SACD_NO_PS3DRIVE
             updateDriveButtons();
-#endif
         };
 
         connect(m_cboInputMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, updateInputMode);
-#ifndef SACD_NO_PS3DRIVE
         connect(m_editDevicePath, &QLineEdit::textChanged,
                 this, &ExtractDialog::updateDriveButtons);
-#endif
 
-#ifndef SACD_NO_PS3DRIVE
         connect(m_btnAuthenticate, &QPushButton::clicked,
                 this, &ExtractDialog::slotAuthenticateDrive);
         connect(m_btnPair, &QPushButton::clicked,
                 this, &ExtractDialog::slotPairDrive);
-#endif
 
         // Default: device mode - network address disabled
         m_editNetworkAddr->setEnabled(false);
-#ifndef SACD_NO_PS3DRIVE
         updateDriveButtons();
 #endif
     }
@@ -327,11 +330,11 @@ void ExtractDialog::setExtracting(bool running)
 {
     m_btnStart->setEnabled(!running);
     m_btnCancel->setEnabled(running);
-    m_cboInputMode->setEnabled(!running);
     m_editDevicePath->setEnabled(!running);
-    m_editNetworkAddr->setEnabled(!running);
     m_editOutputPath->setEnabled(!running);
 #ifndef SACD_NO_PS3DRIVE
+    m_cboInputMode->setEnabled(!running);
+    m_editNetworkAddr->setEnabled(!running);
     m_btnAuthenticate->setEnabled(!running);
     m_btnPair->setEnabled(!running);
     if (!running)
@@ -341,11 +344,15 @@ void ExtractDialog::setExtracting(bool running)
 
 QString ExtractDialog::inputPath() const
 {
+#ifndef SACD_NO_PS3DRIVE
     if (m_cboInputMode->currentData().toInt() == 0) {
         return m_editDevicePath->text();
     } else {
         return m_editNetworkAddr->text();
     }
+#else
+    return m_editDevicePath->text();
+#endif
 }
 
 #ifndef SACD_NO_PS3DRIVE

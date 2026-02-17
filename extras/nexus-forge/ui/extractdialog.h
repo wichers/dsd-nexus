@@ -57,9 +57,13 @@ private slots:
 
 private:
     // Input
+#ifndef SACD_NO_PS3DRIVE
     QComboBox *m_cboInputMode;
+#endif
     QLineEdit *m_editDevicePath;
+#ifndef SACD_NO_PS3DRIVE
     QLineEdit *m_editNetworkAddr;
+#endif
 
     // Output
     QLineEdit *m_editOutputPath;
