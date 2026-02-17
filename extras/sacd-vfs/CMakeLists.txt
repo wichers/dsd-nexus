@@ -70,27 +70,63 @@ if(WIN32)
     set(FUSE_DEFINITIONS "")
 
 else()
-    # Unix: Use native libfuse3
-    message(STATUS "sacd-vfs: Configuring for Unix (libfuse3)")
+    # Unix: Use native libfuse3 (or macFUSE on macOS)
+    if(APPLE)
+        message(STATUS "sacd-vfs: Configuring for macOS (macFUSE)")
+    else()
+        message(STATUS "sacd-vfs: Configuring for Unix (libfuse3)")
+    endif()
 
     # Option to use installed FUSE vs fetched source (headers only)
     option(FUSE_USE_INSTALLED "Use installed libfuse3 instead of fetching from GitHub" ON)
 
     if(FUSE_USE_INSTALLED)
-        # Use system-installed libfuse3 (recommended)
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(FUSE3 fuse3)
+        # Use system-installed FUSE (recommended)
+        set(FUSE3_FOUND FALSE)
+
+        # Try pkg-config first
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(FUSE3 fuse3)
+            if(NOT FUSE3_FOUND AND APPLE)
+                set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/opt/homebrew/lib/pkgconfig")
+                pkg_check_modules(FUSE3 fuse)
+            endif()
+        endif()
+
+        # macOS fallback: detect macFUSE directly without pkg-config
+        if(NOT FUSE3_FOUND AND APPLE)
+            find_path(_macfuse_inc NAMES fuse3/fuse.h
+                PATHS /usr/local/include /opt/homebrew/include
+                NO_DEFAULT_PATH
+            )
+            find_library(_macfuse_lib NAMES fuse3
+                PATHS /usr/local/lib /opt/homebrew/lib
+                NO_DEFAULT_PATH
+            )
+            if(_macfuse_inc AND _macfuse_lib)
+                set(FUSE3_FOUND TRUE)
+                set(FUSE3_INCLUDE_DIRS "${_macfuse_inc}")
+                set(FUSE3_LIBRARIES "${_macfuse_lib}")
+                set(FUSE3_CFLAGS_OTHER "-D_FILE_OFFSET_BITS=64")
+            endif()
+        endif()
 
         if(NOT FUSE3_FOUND)
-            message(STATUS "sacd-vfs: libfuse3 not found")
-            message(STATUS "  Install with: sudo apt install libfuse3-dev (Debian/Ubuntu)")
-            message(STATUS "                sudo dnf install fuse3-devel (Fedora)")
-            message(STATUS "                brew install macfuse (macOS)")
+            message(STATUS "sacd-vfs: FUSE library not found")
+            if(APPLE)
+                message(STATUS "  Install macFUSE from https://osxfuse.github.io/")
+                message(STATUS "  Or install FUSE-T: brew install fuse-t")
+            else()
+                message(STATUS "  Install with: sudo apt install libfuse3-dev (Debian/Ubuntu)")
+                message(STATUS "                sudo dnf install fuse3-devel (Fedora)")
+            endif()
             message(STATUS "  Or use -DFUSE_USE_INSTALLED=OFF to fetch headers from GitHub")
+            message(STATUS "  Skipping sacd-vfs build")
             return()
         endif()
 
-        message(STATUS "sacd-vfs: Using installed libfuse3")
+        message(STATUS "sacd-vfs: Using installed FUSE")
         message(STATUS "  Include: ${FUSE3_INCLUDE_DIRS}")
         message(STATUS "  Library: ${FUSE3_LIBRARIES}")
 
@@ -181,25 +217,32 @@ endif()
 # Link libraries (statically linked via OBJECT libraries, not the full libdsd umbrella)
 # OBJECT libraries don't propagate object files transitively (requires CMake 3.21+),
 # so every OBJECT lib in the dependency chain must be listed explicitly.
-# Dependency chain: libsacdvfs -> libsacd, libdst -> libps3drive -> libsg3 -> sautil
+# Dependency chain: libsacdvfs -> libsacd, libdst -> [libps3drive -> libsg3] -> sautil
+set(_sacd_vfs_libs libsacdvfs libsacd libdst sautil)
+if(BUILD_PS3DRIVE)
+    list(APPEND _sacd_vfs_libs libps3drive libsg3)
+endif()
+set(_sacd_vfs_ext_deps id3dev)
+if(BUILD_PS3DRIVE)
+    list(APPEND _sacd_vfs_ext_deps nanopb tinycsocket)
+endif()
 target_link_libraries(sacd-vfs
     PRIVATE
-        libsacdvfs
-        libsacd
-        libdst
-        libps3drive
-        libsg3
-        sautil
+        ${_sacd_vfs_libs}
         ${FUSE_LIBRARIES}
         # External deps of OBJECT libraries that don't propagate transitively
-        nanopb
-        tinycsocket
-        id3dev
+        ${_sacd_vfs_ext_deps}
 )
+if(NOT BUILD_PS3DRIVE)
+    target_compile_definitions(sacd-vfs PRIVATE SACD_NO_PS3DRIVE)
+endif()
 if(TARGET mbedcrypto)
     target_link_libraries(sacd-vfs PRIVATE mbedcrypto)
 elseif(TARGET MbedTLS::mbedcrypto)
     target_link_libraries(sacd-vfs PRIVATE MbedTLS::mbedcrypto)
+endif()
+if(APPLE)
+    target_link_libraries(sacd-vfs PRIVATE iconv)
 endif()
 
 

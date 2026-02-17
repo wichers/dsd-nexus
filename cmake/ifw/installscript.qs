@@ -1,5 +1,5 @@
 // Qt Installer Framework - install script for Nexus Forge
-// Creates Start Menu and Desktop shortcuts on Windows
+// Creates platform-specific shortcuts and integrations
 
 function Component()
 {
@@ -26,5 +26,19 @@ Component.prototype.createOperations = function()
             "@StartMenuDir@/Uninstall Nexus Forge.lnk",
             "workingDirectory=@TargetDir@",
             "description=Uninstall or update Nexus Forge");
+
+    } else if (systemInfo.productType === "osx" || systemInfo.productType === "macos") {
+        // Move the .app bundle to /Applications as a real app (not a symlink)
+        // IFW undoes operations in reverse order during uninstall/update
+        component.addOperation("Execute",
+            "mv", "@TargetDir@/nexus-forge.app", "@ApplicationsDir@/Nexus Forge.app",
+            "UNDOEXECUTE",
+            "mv", "@ApplicationsDir@/Nexus Forge.app", "@TargetDir@/nexus-forge.app");
+
+        // Hide the install folder (CLI tools, maintenance tool) from Finder
+        component.addOperation("Execute",
+            "chflags", "hidden", "@TargetDir@",
+            "UNDOEXECUTE",
+            "chflags", "nohidden", "@TargetDir@");
     }
 }

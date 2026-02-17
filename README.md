@@ -54,7 +54,7 @@ All library subprojects are compiled as OBJECT libraries and combined into a sin
 - CMake 3.20+
 - MSVC or GCC 11+
 - Qt6 (Core, Gui, Widgets) for nexus-forge GUI (optional -- skipped if not found)
-- WinFSP (Windows) or libfuse3 (Linux) for sacd-vfs
+- WinFSP (Windows), libfuse3 (Linux), or macFUSE (macOS) for sacd-vfs
 
 ### Optional System Dependencies (Linux)
 
@@ -243,6 +243,55 @@ If QtIFW is not installed, you can still create a tarball/zip:
 cd build
 cpack -G TGZ -C Release
 ```
+
+## Building on macOS
+
+### Prerequisites
+
+- **Xcode Command Line Tools** (`xcode-select --install`)
+- **CMake** -- install from [cmake.org](https://cmake.org/download/) or via Homebrew (`brew install cmake`)
+- **macFUSE** -- required for sacd-vfs ([osxfuse.github.io](https://osxfuse.github.io/))
+- **Qt6** -- required for nexus-forge GUI. Install via [Qt Online Installer](https://www.qt.io/download-qt-installer)
+- **Qt Installer Framework** -- required for creating the installer. Install via Qt Maintenance Tool
+
+PS3 drive support is automatically disabled on macOS (no SCSI pass-through).
+
+### Building
+
+**ARM64 only** (Apple Silicon):
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXTRAS=ON \
+    -DCMAKE_PREFIX_PATH=$HOME/Qt/6.10.2/macos
+
+cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+```
+
+**Universal binary** (ARM64 + Intel x86_64):
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXTRAS=ON \
+    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+    -DCMAKE_PREFIX_PATH=$HOME/Qt/6.10.2/macos
+
+cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+```
+
+### Creating the macOS Installer
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXTRAS=ON \
+    -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+    -DCMAKE_PREFIX_PATH=$HOME/Qt/6.10.2/macos \
+    -DCPACK_IFW_ROOT=$HOME/Qt/Tools/QtInstallerFramework/4.10
+
+cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+
+cd build
+cpack -G IFW -C Release
+```
+
+The installer is output as `build/nexus-forge-<version>-macos-universal-setup.dmg`.
+
+Nexus Forge is built as a self-contained `.app` bundle with all Qt frameworks embedded via `macdeployqt`. The CLI tools (dsdctl, sacd-vfs) and libdsd.dylib are installed alongside.
 
 ## Building Linux Packages (sacd-vfs)
 

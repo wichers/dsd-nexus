@@ -23,7 +23,11 @@
 #include <string.h>
 #include <assert.h>
 #include <limits.h>
+#ifdef __APPLE__
+#include "c11threads.h"
+#else
 #include <threads.h>
+#endif
 
 #include <libsautil/mem.h>
 

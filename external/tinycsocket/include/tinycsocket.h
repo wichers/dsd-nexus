@@ -2286,6 +2286,10 @@ static inline int tds_map_remove(void** keys,
  * SOFTWARE.
  */
 
+#ifdef __APPLE__
+#define _DARWIN_C_SOURCE
+#endif
+
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200112L
 #endif
@@ -2326,6 +2330,14 @@ static inline int tds_map_remove(void** keys,
 #include <sys/types.h>   // POSIX.1 compatibility
 #include <sys/uio.h>     // UIO_MAXIOV
 #include <unistd.h>      // close()
+
+#ifndef UIO_MAXIOV
+#ifdef IOV_MAX
+#define UIO_MAXIOV IOV_MAX
+#else
+#define UIO_MAXIOV 1024
+#endif
+#endif
 
 // The logic might seem a bit reversed but it is to allow header only usage without defining TCS_AVAILABLE_XXX
 // You need to disable the default if your system does not support it. (Optimized for most common usage and easy to detect)
@@ -2371,6 +2383,9 @@ const int TCS_WAIT_INF = -1;
 // Addresses
 const uint32_t TCS_ADDRESS_ANY_IP4 = INADDR_ANY;
 const uint32_t TCS_ADDRESS_LOOPBACK_IP4 = INADDR_LOOPBACK;
+#ifndef INADDR_NONE
+#define INADDR_NONE 0xffffffff
+#endif
 const uint32_t TCS_ADDRESS_BROADCAST_IP4 = INADDR_BROADCAST;
 const uint32_t TCS_ADDRESS_NONE_IP4 = INADDR_NONE;
 
@@ -2411,7 +2426,11 @@ const int TCS_SO_RCVBUF = SO_RCVBUF;
 const int TCS_SO_RCVTIMEO = SO_RCVTIMEO;
 const int TCS_SO_SNDBUF = SO_SNDBUF;
 const int TCS_SO_OOBINLINE = SO_OOBINLINE;
+#ifdef SO_PRIORITY
 const int TCS_SO_PRIORITY = SO_PRIORITY;
+#else
+const int TCS_SO_PRIORITY = -1;
+#endif
 
 // IP options
 const int TCS_SO_IP_NODELAY = TCP_NODELAY;
@@ -3274,7 +3293,7 @@ TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_s
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
+    struct linger l = {(unsigned short)do_linger, (unsigned short)timeout_seconds};
     return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
 }
 
@@ -4900,7 +4919,7 @@ TcsResult tcs_opt_linger_set(TcsSocket socket_ctx, bool do_linger, int timeout_s
     if (socket_ctx == TCS_SOCKET_INVALID)
         return TCS_ERROR_INVALID_ARGUMENT;
 
-    struct linger l = {(u_short)do_linger, (u_short)timeout_seconds};
+    struct linger l = {(unsigned short)do_linger, (unsigned short)timeout_seconds};
     return tcs_opt_set(socket_ctx, TCS_SOL_SOCKET, TCS_SO_LINGER, &l, sizeof(l));
 }
 

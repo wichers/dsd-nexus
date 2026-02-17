@@ -107,6 +107,16 @@ static inline fuse_gid_t fuse_compat_getgid(void) { return 0; }
  */
 #define _FILE_OFFSET_BITS 64
 
+#ifdef __APPLE__
+/*
+ * macFUSE defines FUSE_DARWIN_ENABLE_EXTENSIONS=1 by default, which replaces
+ * struct stat with struct fuse_darwin_attr and fuse_fill_dir_t with
+ * fuse_darwin_fill_dir_t in all FUSE callbacks. Disable this to use the same
+ * standard POSIX types as Linux, keeping our code platform-agnostic.
+ */
+#define FUSE_DARWIN_ENABLE_EXTENSIONS 0
+#endif
+
 #include <fuse3/fuse.h>
 #include <sys/stat.h>
 #include <unistd.h>

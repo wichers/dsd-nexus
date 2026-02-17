@@ -34,7 +34,11 @@
 #define SA_TPOOL_INTERNAL_H
 
 #include <stdint.h>
+#ifdef __APPLE__
+#include "c11threads.h"
+#else
 #include <threads.h>
+#endif
 
 #include "sa_tpool.h"
 

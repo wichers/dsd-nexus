@@ -21,7 +21,11 @@
 
 #include <stdatomic.h>
 #include <stdint.h>
+#ifdef __APPLE__
+#include "c11threads.h"
+#else
 #include <threads.h>
+#endif
 
 #include "buffer.h"
 

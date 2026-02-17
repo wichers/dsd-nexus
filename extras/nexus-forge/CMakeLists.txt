@@ -30,8 +30,10 @@ set(NEXUS_PIPELINE_SOURCES
     pipeline/dsdworker.cpp
     pipeline/dsdprobe.cpp
     pipeline/extractworker.cpp
-    pipeline/ps3driveworker.cpp
 )
+if(BUILD_PS3DRIVE)
+    list(APPEND NEXUS_PIPELINE_SOURCES pipeline/ps3driveworker.cpp)
+endif()
 
 set(NEXUS_UI_SOURCES
     ui/mainwindow.cpp
@@ -99,7 +101,27 @@ if(WIN32)
     target_compile_definitions(nexus-forge PRIVATE TOOLS_IN_DATA_PATH)
     # Set WIN32_EXECUTABLE for release builds (no console window)
     set_target_properties(nexus-forge PROPERTIES WIN32_EXECUTABLE $<CONFIG:Release>)
-elseif(UNIX AND NOT APPLE)
+elseif(APPLE)
+    set_target_properties(nexus-forge PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_BUNDLE_NAME "Nexus Forge"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "com.nexusforge.app"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_ICON_FILE "appicon.icns"
+        # Use @rpath-relative linking; macdeployqt rewrites rpaths when
+        # bundling frameworks so CPack install_name_tool won't find stale paths.
+        INSTALL_RPATH "@executable_path/../Frameworks"
+        BUILD_WITH_INSTALL_RPATH FALSE
+    )
+    # Copy .icns into the bundle's Resources directory
+    set(_icns_file "${CMAKE_CURRENT_SOURCE_DIR}/icons/appicon.icns")
+    if(EXISTS "${_icns_file}")
+        set_source_files_properties("${_icns_file}" PROPERTIES
+            MACOSX_PACKAGE_LOCATION "Resources")
+        target_sources(nexus-forge PRIVATE "${_icns_file}")
+    endif()
+elseif(UNIX)
     if(TARGET Qt6::DBus)
         target_link_libraries(nexus-forge PRIVATE Qt6::DBus)
     endif()
@@ -121,6 +143,9 @@ target_compile_definitions(nexus-forge PRIVATE
     APP_NAME="Nexus Forge"
     APP_ORGANIZATION="nexus-forge"
 )
+if(NOT BUILD_PS3DRIVE)
+    target_compile_definitions(nexus-forge PRIVATE SACD_NO_PS3DRIVE)
+endif()
 
 # Output alongside dsd.dll so the executable can find the DLL at runtime
 set_target_properties(nexus-forge PROPERTIES
@@ -134,18 +159,27 @@ set_target_properties(nexus-forge PROPERTIES
 # Installation
 # =============================================================================
 
-install(TARGETS nexus-forge
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT dsd_application
-)
+if(APPLE)
+    install(TARGETS nexus-forge
+        BUNDLE DESTINATION "."
+        COMPONENT dsd_application
+    )
+else()
+    install(TARGETS nexus-forge
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT dsd_application
+    )
+endif()
 
 # =============================================================================
-# windeployqt: Collect Qt6 runtime DLLs and plugins for packaging
+# Qt deploy: Collect Qt runtime frameworks/DLLs and plugins for packaging
 # =============================================================================
+
+# Locate Qt tools directory
+get_target_property(_qmake_path Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(_qt_bin_dir "${_qmake_path}" DIRECTORY)
+
 if(WIN32)
-    # Locate windeployqt alongside the Qt6 tools
-    get_target_property(_qmake_path Qt6::qmake IMPORTED_LOCATION)
-    get_filename_component(_qt_bin_dir "${_qmake_path}" DIRECTORY)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt_bin_dir}" NO_DEFAULT_PATH)
 
     if(WINDEPLOYQT_EXECUTABLE)
@@ -173,5 +207,21 @@ if(WIN32)
         )
     else()
         message(WARNING "windeployqt not found -- Qt runtime DLLs will not be bundled in the installer")
+    endif()
+
+elseif(APPLE)
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${_qt_bin_dir}" NO_DEFAULT_PATH)
+
+    if(MACDEPLOYQT_EXECUTABLE)
+        # Run macdeployqt after building to embed Qt frameworks into the .app bundle
+        add_custom_command(TARGET nexus-forge POST_BUILD
+            COMMAND "${MACDEPLOYQT_EXECUTABLE}"
+                "$<TARGET_BUNDLE_DIR:nexus-forge>"
+                -always-overwrite
+            COMMENT "Running macdeployqt to embed Qt frameworks into app bundle..."
+            VERBATIM
+        )
+    else()
+        message(WARNING "macdeployqt not found -- Qt frameworks will not be bundled in the app")
     endif()
 endif()

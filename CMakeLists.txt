@@ -49,8 +49,15 @@ option(BUILD_SHARED_LIBS "Build shared libraries (required for LGPL compliance)"
 option(BUILD_EXTRAS "Build optional tools (sacd-extract, dsd_convert)" ON)
 option(BUILD_EXAMPLES "Build example programs" ON)
 option(BUILD_TESTS "Build test suite" ON)
+option(BUILD_PS3DRIVE "Build PS3 drive support (requires SCSI pass-through)" ON)
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
+
+# Auto-disable PS3 drive on platforms without SCSI pass-through support
+if(BUILD_PS3DRIVE AND APPLE)
+    message(STATUS "PS3 drive support auto-disabled: no SCSI pass-through on macOS")
+    set(BUILD_PS3DRIVE OFF)
+endif()
 
 # Symbol export is handled by per-library *_API macros (__declspec(dllexport/dllimport)).
 # CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS is OFF because the cmake __create_def tool
@@ -58,6 +65,12 @@ option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
 
 # Ensure all libraries are built with position-independent code
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+# macOS: Set install rpath so installed binaries find libdsd.dylib in ../lib
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+endif()
 
 # Fetch ID3dev (third-party: keep as static)
 FetchContent_Declare(
@@ -156,15 +169,18 @@ else()
         -Wno-switch
         -Wno-format-zero-length
         -Wno-unused-const-variable
-        -Wno-bool-operation
         -Wno-char-subscripts
-        -Wno-maybe-uninitialized
 
         # Critical warnings as errors
         -Werror=format-security
         -Werror=return-type
         -Werror=vla
     )
+
+    # GCC-only warning flags (not supported by Apple Clang)
+    if(NOT APPLE)
+        add_compile_options(-Wno-bool-operation -Wno-maybe-uninitialized)
+    endif()
 
     # C-specific flags (append to CMAKE_C_FLAGS to avoid affecting C++)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wmissing-prototypes -Wstrict-prototypes -Wno-pointer-sign -Werror=implicit-function-declaration -Werror=missing-prototypes")
@@ -177,13 +193,20 @@ else()
     # -fomit-frame-pointer - More registers available
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -fno-math-errno -fno-signed-zeros -fno-tree-vectorize -fomit-frame-pointer -DNDEBUG")
 
-    # FFmpeg-style linker flags
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed -Wl,-z,noexecstack")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--as-needed -Wl,-z,noexecstack")
+    # Linker flags (platform-specific)
+    if(APPLE)
+        # macOS: Apple ld uses -dead_strip instead of GNU ld flags
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -Wl,-dead_strip")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -Wl,-dead_strip")
+    else()
+        # Linux/GNU ld linker flags
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--as-needed -Wl,-z,noexecstack")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--as-needed -Wl,-z,noexecstack")
 
-    # Strip symbols in release
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
-    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
+        # Strip symbols in release (GNU ld only)
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -s")
+    endif()
 
     # Enable LTO if supported
     include(CheckIPOSupported)
@@ -224,8 +247,10 @@ endif()
 # =============================================================================
 # Order matters: dependencies must be added before dependents
 add_subdirectory(libs/libsautil)
-add_subdirectory(libs/libsg3)
-add_subdirectory(libs/libps3drive)
+if(BUILD_PS3DRIVE)
+    add_subdirectory(libs/libsg3)
+    add_subdirectory(libs/libps3drive)
+endif()
 add_subdirectory(libs/libdsdiff)
 add_subdirectory(libs/libdsf)
 add_subdirectory(libs/libdst)
@@ -261,10 +286,11 @@ add_library(libdsd)
 add_library(dsd::dsd ALIAS libdsd)
 
 # Collect all OBJECT libraries (PUBLIC propagates include dirs to consumers)
-target_link_libraries(libdsd PUBLIC
-    sautil libsg3 libps3drive libdsdiff libdsf libdst
-    libdsdpcm libsacd libsacdvfs dsdpipe
-)
+set(_libdsd_public_libs sautil libdsdiff libdsf libdst libdsdpcm libsacd libsacdvfs dsdpipe)
+if(BUILD_PS3DRIVE)
+    list(APPEND _libdsd_public_libs libsg3 libps3drive)
+endif()
+target_link_libraries(libdsd PUBLIC ${_libdsd_public_libs})
 
 # External dependencies (PRIVATE to individual OBJECT libs, must be linked here)
 target_link_libraries(libdsd PRIVATE dsdpcm_core nanopb id3dev tinycsocket)
@@ -276,6 +302,9 @@ if(TARGET FLAC::FLAC)
 elseif(TARGET FLAC)
     target_link_libraries(libdsd PRIVATE FLAC)
 endif()
+if(APPLE)
+    target_link_libraries(libdsd PRIVATE iconv)
+endif()
 
 # C++ linker required (libdsdpcm has .cpp sources)
 set_target_properties(libdsd PROPERTIES LINKER_LANGUAGE CXX)
@@ -286,12 +315,18 @@ if(BUILD_SHARED_LIBS)
     # macros so that cross-lib header includes resolve to dllexport (not dllimport).
     set(_all_building_defines
         SACD_API_EXPORTS
-        PS3DRIVE_BUILDING_DLL DSDPCM_BUILDING_DLL
+        DSDPCM_BUILDING_DLL
         DSDIFF_BUILDING_DLL DSF_BUILDING_DLL DST_BUILDING_DLL
         SACDVFS_BUILDING_DLL DSDPIPE_BUILDING_DLL
     )
-    foreach(_obj sautil libsg3 libps3drive libdsdiff libdsf libdst
-                 libdsdpcm libsacd libsacdvfs dsdpipe)
+    if(BUILD_PS3DRIVE)
+        list(APPEND _all_building_defines PS3DRIVE_BUILDING_DLL)
+    endif()
+    set(_obj_libs sautil libdsdiff libdsf libdst libdsdpcm libsacd libsacdvfs dsdpipe)
+    if(BUILD_PS3DRIVE)
+        list(APPEND _obj_libs libsg3 libps3drive)
+    endif()
+    foreach(_obj ${_obj_libs})
         target_compile_definitions(${_obj} PRIVATE ${_all_building_defines})
     endforeach()
 
@@ -340,8 +375,11 @@ install(TARGETS libdsd
 )
 
 # Install all public headers from libs/ (those with include/ subdirectories)
-foreach(_lib libsautil libsg3 libps3drive libdsdiff libdsf libdst
-             libdsdpcm libsacd libsacdvfs libdsdpipe)
+set(_install_libs libsautil libdsdiff libdsf libdst libdsdpcm libsacd libsacdvfs libdsdpipe)
+if(BUILD_PS3DRIVE)
+    list(APPEND _install_libs libsg3 libps3drive)
+endif()
+foreach(_lib ${_install_libs})
     if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/libs/${_lib}/include)
         install(DIRECTORY libs/${_lib}/include/
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -399,10 +437,11 @@ install(FILES
 # =============================================================================
 add_library(libdsd_static STATIC)
 
-target_link_libraries(libdsd_static PUBLIC
-    sautil libsg3 libps3drive libdsdiff libdsf libdst
-    libdsdpcm libsacd libsacdvfs dsdpipe
-)
+set(_libdsd_static_public_libs sautil libdsdiff libdsf libdst libdsdpcm libsacd libsacdvfs dsdpipe)
+if(BUILD_PS3DRIVE)
+    list(APPEND _libdsd_static_public_libs libsg3 libps3drive)
+endif()
+target_link_libraries(libdsd_static PUBLIC ${_libdsd_static_public_libs})
 
 target_link_libraries(libdsd_static PRIVATE dsdpcm_core nanopb id3dev tinycsocket)
 if(TARGET mbedcrypto)
@@ -412,6 +451,9 @@ if(TARGET FLAC::FLAC)
     target_link_libraries(libdsd_static PRIVATE FLAC::FLAC)
 elseif(TARGET FLAC)
     target_link_libraries(libdsd_static PRIVATE FLAC)
+endif()
+if(APPLE)
+    target_link_libraries(libdsd_static PRIVATE iconv)
 endif()
 
 set_target_properties(libdsd_static PROPERTIES LINKER_LANGUAGE CXX)
@@ -506,6 +548,7 @@ message(STATUS "Shared libraries:  ${BUILD_SHARED_LIBS}")
 message(STATUS "Build extras:      ${BUILD_EXTRAS}")
 message(STATUS "Build examples:    ${BUILD_EXAMPLES}")
 message(STATUS "Build tests:       ${BUILD_TESTS}")
+message(STATUS "PS3 drive support: ${BUILD_PS3DRIVE}")
 message(STATUS "Code coverage:     ${ENABLE_COVERAGE}")
 message(STATUS "Address Sanitizer: ${ENABLE_ASAN}")
 message(STATUS "Install prefix:    ${CMAKE_INSTALL_PREFIX}")

@@ -43,7 +43,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifdef __APPLE__
+#include <libsautil/c11threads.h>
+#else
 #include <threads.h>
+#endif
 
 #ifdef _WIN32
 #include <windows.h>

@@ -50,7 +50,11 @@
 #endif
 
 /* Threading support */
+#ifdef __APPLE__
+#include <libsautil/c11threads.h>
+#else
 #include <threads.h>
+#endif
 
 /* =============================================================================
  * Internal Constants

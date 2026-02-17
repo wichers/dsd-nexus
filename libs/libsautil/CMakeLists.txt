@@ -26,7 +26,12 @@ elseif(UNIX)
 endif()
 
 # Determine architecture
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+# For macOS universal builds (arm64;x86_64), use the universal config wrapper
+# which dispatches to the correct arch-specific config at compile time.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64" AND CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+    set(ARCH_NAME "universal")
+    set(ARCH_UNIVERSAL 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
     set(ARCH_NAME "arm64")
     set(ARCH_AARCH64 1)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|ARM")
@@ -140,6 +145,7 @@ set(SAUTIL_HEADERS
     tree.h
     va_copy.h
     win_utf8_io.h
+    c11threads.h
     msvc/stdatomic.h
 )
 
@@ -157,32 +163,21 @@ set(SAUTIL_HEADERS
 #    )
 #endif()
 
-# ARM specific files
-if(ARCH_ARM)
-    list(APPEND SAUTIL_SOURCES
-        arm/cpu.c
-    )
+# Architecture-specific CPU detection files (optional, only included if present)
+if(ARCH_ARM AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/arm/cpu.c")
+    list(APPEND SAUTIL_SOURCES arm/cpu.c)
 endif()
 
-# ARM64/AArch64 specific files
-if(ARCH_AARCH64)
-    list(APPEND SAUTIL_SOURCES
-        aarch64/cpu.c
-    )
+if(ARCH_AARCH64 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/aarch64/cpu.c")
+    list(APPEND SAUTIL_SOURCES aarch64/cpu.c)
 endif()
 
-# MIPS specific files
-if(ARCH_MIPS OR ARCH_MIPS64)
-    list(APPEND SAUTIL_SOURCES
-        mips/cpu.c
-    )
+if((ARCH_MIPS OR ARCH_MIPS64) AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mips/cpu.c")
+    list(APPEND SAUTIL_SOURCES mips/cpu.c)
 endif()
 
-# RISC-V specific files
-if(ARCH_RISCV)
-    list(APPEND SAUTIL_SOURCES
-        riscv/cpu.c
-    )
+if(ARCH_RISCV AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/riscv/cpu.c")
+    list(APPEND SAUTIL_SOURCES riscv/cpu.c)
 endif()
 
 ###########################################################
@@ -212,9 +207,16 @@ add_library(sautil OBJECT ${SAUTIL_SOURCES} ${SAUTIL_HEADERS})
 # Per-file compile flags for third-party code
 if(NOT MSVC)
     # sxmlc.c: Suppress const-qualifier warnings (third-party code with intentional design)
-    set_source_files_properties(sxmlc.c PROPERTIES
-        COMPILE_FLAGS "-Wno-discarded-qualifiers"
-    )
+    # GCC uses -Wno-discarded-qualifiers, Clang uses -Wno-incompatible-pointer-types-discards-qualifiers
+    if(APPLE)
+        set_source_files_properties(sxmlc.c PROPERTIES
+            COMPILE_FLAGS "-Wno-incompatible-pointer-types-discards-qualifiers"
+        )
+    else()
+        set_source_files_properties(sxmlc.c PROPERTIES
+            COMPILE_FLAGS "-Wno-discarded-qualifiers"
+        )
+    endif()
 endif()
 
 ###########################################################
@@ -248,7 +250,10 @@ target_include_directories(sautil SYSTEM PRIVATE
 ###########################################################
 
 # Define architecture flags
-if(ARCH_X86_64)
+# For universal builds, the config.h wrapper handles ARCH_* per compilation unit
+if(ARCH_UNIVERSAL)
+    # No ARCH_* definitions needed -- config.h dispatches per-arch at compile time
+elseif(ARCH_X86_64)
     target_compile_definitions(sautil PRIVATE ARCH_X86_64=1 ARCH_X86=1)
 elseif(ARCH_X86_32)
     target_compile_definitions(sautil PRIVATE ARCH_X86_32=1 ARCH_X86=1)
@@ -269,8 +274,13 @@ target_compile_definitions(sautil PRIVATE
     HAVE_SA_CONFIG_H  # Enable config.h inclusion in headers
 )
 
-# FFmpeg-style POSIX and feature test macros (Linux/Unix only)
-if(UNIX AND NOT APPLE)
+# FFmpeg-style POSIX and feature test macros
+if(APPLE)
+    target_compile_definitions(sautil PRIVATE
+        _FILE_OFFSET_BITS=64    # Large file support
+        PIC                     # Position-independent code
+    )
+elseif(UNIX)
     target_compile_definitions(sautil PRIVATE
         _ISOC11_SOURCE          # ISO C11 features
         _FILE_OFFSET_BITS=64    # Large file support
@@ -332,12 +342,26 @@ if(MSVC)
         )
     endif()
 else()
+    # Force include system time.h first to prevent local time.h from shadowing it
+    if(APPLE)
+        # macOS: system headers are inside the SDK, find the path via xcrun
+        execute_process(
+            COMMAND xcrun --show-sdk-path
+            OUTPUT_VARIABLE _macos_sdk_path
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_macos_sdk_path)
+            target_compile_options(sautil PRIVATE -include "${_macos_sdk_path}/usr/include/time.h")
+        else()
+            target_compile_options(sautil PRIVATE -include time.h)
+        endif()
+    else()
+        target_compile_options(sautil PRIVATE -include /usr/include/time.h)
+    endif()
+
     # FFmpeg-style GCC/Clang flags
     target_compile_options(sautil PRIVATE
-        # Force include system time.h first to prevent local time.h from shadowing it
-        # Use full path to ensure we get the system header, not our local time.h
-        -include /usr/include/time.h
-
         # Basic flags
         -fomit-frame-pointer
         -fPIC
@@ -363,9 +387,7 @@ else()
         -Wno-format-zero-length
         -Wno-pointer-sign
         -Wno-unused-const-variable
-        -Wno-bool-operation
         -Wno-char-subscripts
-        -Wno-maybe-uninitialized
 
         # Warnings as errors (critical issues)
         -Werror=implicit-function-declaration
@@ -374,6 +396,11 @@ else()
         -Werror=return-type
         -Werror=vla
     )
+
+    # GCC-only warning flags (not supported by Apple Clang)
+    if(NOT APPLE)
+        target_compile_options(sautil PRIVATE -Wno-bool-operation -Wno-maybe-uninitialized)
+    endif()
 
     # Optimization flags for Release builds
     target_compile_options(sautil PRIVATE
