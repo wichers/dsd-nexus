@@ -27,7 +27,7 @@ Component.prototype.createOperations = function()
             "workingDirectory=@TargetDir@",
             "description=Uninstall or update Nexus Forge");
 
-    } else if (systemInfo.productType === "osx") {
+    } else if (systemInfo.productType === "osx" || systemInfo.productType === "macos") {
         // Create a symlink in /Applications so the app appears directly in Launchpad/Finder
         component.addOperation("Execute",
             "ln", "-sf",
