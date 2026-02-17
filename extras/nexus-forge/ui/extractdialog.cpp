@@ -190,14 +190,10 @@ void ExtractDialog::setupUi()
         QFormLayout *inputForm = new QFormLayout();
 
         m_editDevicePath = new QLineEdit(grp);
-#ifndef SACD_NO_PS3DRIVE
 #ifdef Q_OS_WIN
         m_editDevicePath->setPlaceholderText(tr("e.g. disc.iso, D:, or 192.168.1.100:2002"));
 #else
         m_editDevicePath->setPlaceholderText(tr("e.g. disc.iso, /dev/sr0, or 192.168.1.100:2002"));
-#endif
-#else
-        m_editDevicePath->setPlaceholderText(tr("e.g. disc.iso or /path/to/image.iso"));
 #endif
         inputForm->addRow(tr("Source:"), m_editDevicePath);
 
