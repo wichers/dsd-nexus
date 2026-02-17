@@ -28,16 +28,14 @@ Component.prototype.createOperations = function()
             "description=Uninstall or update Nexus Forge");
 
     } else if (systemInfo.productType === "osx" || systemInfo.productType === "macos") {
-        // Create a symlink in /Applications so the app appears directly in Launchpad/Finder
-        // The symlink inherits the .app bundle icon automatically
+        // Move the .app bundle to /Applications as a real app (not a symlink)
+        // IFW undoes operations in reverse order during uninstall/update
         component.addOperation("Execute",
-            "ln", "-sf",
-            "@TargetDir@/nexus-forge.app",
-            "@ApplicationsDir@/Nexus Forge.app",
+            "mv", "@TargetDir@/nexus-forge.app", "@ApplicationsDir@/Nexus Forge.app",
             "UNDOEXECUTE",
-            "rm", "-f", "@ApplicationsDir@/Nexus Forge.app");
+            "mv", "@ApplicationsDir@/Nexus Forge.app", "@TargetDir@/nexus-forge.app");
 
-        // Hide the install folder from Finder so only the .app symlink is visible
+        // Hide the install folder (CLI tools, maintenance tool) from Finder
         component.addOperation("Execute",
             "chflags", "hidden", "@TargetDir@",
             "UNDOEXECUTE",
