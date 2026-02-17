@@ -26,6 +26,20 @@ Component.prototype.createOperations = function()
             "@StartMenuDir@/Uninstall Nexus Forge.lnk",
             "workingDirectory=@TargetDir@",
             "description=Uninstall or update Nexus Forge");
+
+    } else if (systemInfo.productType === "osx") {
+        // Set the install folder icon to the app icon
+        component.addOperation("Execute",
+            "osascript", "-e",
+            "use framework \"AppKit\"\n" +
+            "set iconImage to (current application's NSImage's alloc()'s " +
+                "initWithContentsOfFile:\"@TargetDir@/nexus-forge.app/Contents/Resources/appicon.icns\")\n" +
+            "current application's NSWorkspace's sharedWorkspace()'s " +
+                "setIcon:iconImage forFile:\"@TargetDir@\" options:0",
+            "UNDOEXECUTE",
+            "osascript", "-e",
+            "use framework \"AppKit\"\n" +
+            "current application's NSWorkspace's sharedWorkspace()'s " +
+                "setIcon:(missing value) forFile:\"@TargetDir@\" options:0");
     }
-    // macOS: the .app bundle is self-contained, no additional shortcuts needed
 }

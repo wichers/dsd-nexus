@@ -66,6 +66,12 @@ endif()
 # Ensure all libraries are built with position-independent code
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# macOS: Set install rpath so installed binaries find libdsd.dylib in ../lib
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+endif()
+
 # Fetch ID3dev (third-party: keep as static)
 FetchContent_Declare(
     id3dev
