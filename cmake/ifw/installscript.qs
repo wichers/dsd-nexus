@@ -1,5 +1,5 @@
 // Qt Installer Framework - install script for Nexus Forge
-// Creates Start Menu and Desktop shortcuts on Windows
+// Creates platform-specific shortcuts and integrations
 
 function Component()
 {
@@ -27,4 +27,5 @@ Component.prototype.createOperations = function()
             "workingDirectory=@TargetDir@",
             "description=Uninstall or update Nexus Forge");
     }
+    // macOS: the .app bundle is self-contained, no additional shortcuts needed
 }
