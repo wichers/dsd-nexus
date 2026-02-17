@@ -241,6 +241,9 @@ if(TARGET mbedcrypto)
 elseif(TARGET MbedTLS::mbedcrypto)
     target_link_libraries(sacd-vfs PRIVATE MbedTLS::mbedcrypto)
 endif()
+if(APPLE)
+    target_link_libraries(sacd-vfs PRIVATE iconv)
+endif()
 
 
 # Compiler flags
