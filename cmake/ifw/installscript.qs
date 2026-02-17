@@ -36,5 +36,11 @@ Component.prototype.createOperations = function()
             "@ApplicationsDir@/Nexus Forge.app",
             "UNDOEXECUTE",
             "rm", "-f", "@ApplicationsDir@/Nexus Forge.app");
+
+        // Hide the install folder from Finder so only the .app symlink is visible
+        component.addOperation("Execute",
+            "chflags", "hidden", "@TargetDir@",
+            "UNDOEXECUTE",
+            "chflags", "nohidden", "@TargetDir@");
     }
 }
