@@ -63,14 +63,15 @@
 #endif
 #endif
 #else
-#ifndef HAVE_FSEEKO
+#if defined(__APPLE__) || defined(HAVE_FSEEKO)
+/* macOS and most modern POSIX systems have native fseeko/ftello */
+#define FLAC__off_t off_t
+#define FLAC__OFF_T_MAX (sizeof(off_t) == sizeof(int64_t) ? INT64_MAX : sizeof(off_t) == sizeof(int32_t) ? INT32_MAX : -999999)
+#else
 #define fseeko fseek
 #define ftello ftell
 #define FLAC__off_t long
 #define FLAC__OFF_T_MAX LONG_MAX
-#else
-#define FLAC__off_t off_t
-#define FLAC__OFF_T_MAX (sizeof(off_t) == sizeof(int64_t) ? INT64_MAX : sizeof(off_t) == sizeof(int32_t) ? INT32_MAX : -999999)
 #endif
 #endif
 
