@@ -28,7 +28,15 @@ Component.prototype.createOperations = function()
             "description=Uninstall or update Nexus Forge");
 
     } else if (systemInfo.productType === "osx") {
-        // Set the install folder icon to the app icon via osascript
+        // Create a symlink in /Applications so the app appears directly in Launchpad/Finder
+        component.addOperation("Execute",
+            "ln", "-sf",
+            "@TargetDir@/nexus-forge.app",
+            "@ApplicationsDir@/Nexus Forge.app",
+            "UNDOEXECUTE",
+            "rm", "-f", "@ApplicationsDir@/Nexus Forge.app");
+
+        // Set the install folder icon to the app icon
         component.addOperation("Execute",
             "osascript",
             "-e", "use framework \"AppKit\"",
