@@ -26,7 +26,12 @@ elseif(UNIX)
 endif()
 
 # Determine architecture
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
+# For macOS universal builds (arm64;x86_64), use the universal config wrapper
+# which dispatches to the correct arch-specific config at compile time.
+if(APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64" AND CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+    set(ARCH_NAME "universal")
+    set(ARCH_UNIVERSAL 1)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
     set(ARCH_NAME "arm64")
     set(ARCH_AARCH64 1)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "armv7|ARM")
@@ -245,7 +250,10 @@ target_include_directories(sautil SYSTEM PRIVATE
 ###########################################################
 
 # Define architecture flags
-if(ARCH_X86_64)
+# For universal builds, the config.h wrapper handles ARCH_* per compilation unit
+if(ARCH_UNIVERSAL)
+    # No ARCH_* definitions needed -- config.h dispatches per-arch at compile time
+elseif(ARCH_X86_64)
     target_compile_definitions(sautil PRIVATE ARCH_X86_64=1 ARCH_X86=1)
 elseif(ARCH_X86_32)
     target_compile_definitions(sautil PRIVATE ARCH_X86_32=1 ARCH_X86=1)
