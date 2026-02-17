@@ -29,22 +29,12 @@ Component.prototype.createOperations = function()
 
     } else if (systemInfo.productType === "osx" || systemInfo.productType === "macos") {
         // Create a symlink in /Applications so the app appears directly in Launchpad/Finder
+        // The symlink inherits the .app bundle icon automatically
         component.addOperation("Execute",
             "ln", "-sf",
             "@TargetDir@/nexus-forge.app",
             "@ApplicationsDir@/Nexus Forge.app",
             "UNDOEXECUTE",
             "rm", "-f", "@ApplicationsDir@/Nexus Forge.app");
-
-        // Set the install folder icon to the app icon
-        component.addOperation("Execute",
-            "osascript",
-            "-e", "use framework \"AppKit\"",
-            "-e", "set iconImage to (current application's NSImage's alloc()'s initWithContentsOfFile:\"@TargetDir@/nexus-forge.app/Contents/Resources/appicon.icns\")",
-            "-e", "current application's NSWorkspace's sharedWorkspace()'s setIcon:iconImage forFile:\"@TargetDir@\" options:0",
-            "UNDOEXECUTE",
-            "osascript",
-            "-e", "use framework \"AppKit\"",
-            "-e", "current application's NSWorkspace's sharedWorkspace()'s setIcon:(missing value) forFile:\"@TargetDir@\" options:0");
     }
 }
