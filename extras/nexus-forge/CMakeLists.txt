@@ -30,8 +30,10 @@ set(NEXUS_PIPELINE_SOURCES
     pipeline/dsdworker.cpp
     pipeline/dsdprobe.cpp
     pipeline/extractworker.cpp
-    pipeline/ps3driveworker.cpp
 )
+if(BUILD_PS3DRIVE)
+    list(APPEND NEXUS_PIPELINE_SOURCES pipeline/ps3driveworker.cpp)
+endif()
 
 set(NEXUS_UI_SOURCES
     ui/mainwindow.cpp
@@ -121,6 +123,9 @@ target_compile_definitions(nexus-forge PRIVATE
     APP_NAME="Nexus Forge"
     APP_ORGANIZATION="nexus-forge"
 )
+if(NOT BUILD_PS3DRIVE)
+    target_compile_definitions(nexus-forge PRIVATE SACD_NO_PS3DRIVE)
+endif()
 
 # Output alongside dsd.dll so the executable can find the DLL at runtime
 set_target_properties(nexus-forge PROPERTIES

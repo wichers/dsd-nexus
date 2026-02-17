@@ -10,7 +10,9 @@
 
 #include "extractdialog.h"
 #include "pipeline/extractworker.h"
+#ifndef SACD_NO_PS3DRIVE
 #include "pipeline/ps3driveworker.h"
+#endif
 
 #include <QComboBox>
 #include <QLineEdit>
@@ -31,8 +33,10 @@ ExtractDialog::ExtractDialog(QWidget *parent)
     : QDialog(parent)
     , m_thread(nullptr)
     , m_worker(nullptr)
+#ifndef SACD_NO_PS3DRIVE
     , m_driveThread(nullptr)
     , m_driveWorker(nullptr)
+#endif
 {
     setupUi();
 }
@@ -45,10 +49,12 @@ ExtractDialog::~ExtractDialog()
         m_thread->quit();
         m_thread->wait(5000);
     }
+#ifndef SACD_NO_PS3DRIVE
     if (m_driveThread) {
         m_driveThread->quit();
         m_driveThread->wait(5000);
     }
+#endif
 }
 
 void ExtractDialog::slotBrowseOutput()
@@ -207,6 +213,7 @@ void ExtractDialog::setupUi()
 
         grpLay->addLayout(inputForm);
 
+#ifndef SACD_NO_PS3DRIVE
         QHBoxLayout *driveRow = new QHBoxLayout();
         m_btnAuthenticate = new QPushButton(tr("Authenticate Drive"), grp);
         m_btnPair = new QPushButton(tr("Pair Drive"), grp);
@@ -214,6 +221,7 @@ void ExtractDialog::setupUi()
         driveRow->addWidget(m_btnPair);
         driveRow->addStretch();
         grpLay->addLayout(driveRow);
+#endif
 
         mainLayout->addWidget(grp);
 
@@ -226,22 +234,30 @@ void ExtractDialog::setupUi()
                 m_editNetworkAddr->clear();
             else
                 m_editDevicePath->clear();
+#ifndef SACD_NO_PS3DRIVE
             updateDriveButtons();
+#endif
         };
 
         connect(m_cboInputMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, updateInputMode);
+#ifndef SACD_NO_PS3DRIVE
         connect(m_editDevicePath, &QLineEdit::textChanged,
                 this, &ExtractDialog::updateDriveButtons);
+#endif
 
+#ifndef SACD_NO_PS3DRIVE
         connect(m_btnAuthenticate, &QPushButton::clicked,
                 this, &ExtractDialog::slotAuthenticateDrive);
         connect(m_btnPair, &QPushButton::clicked,
                 this, &ExtractDialog::slotPairDrive);
+#endif
 
         // Default: device mode - network address disabled
         m_editNetworkAddr->setEnabled(false);
+#ifndef SACD_NO_PS3DRIVE
         updateDriveButtons();
+#endif
     }
 
     // Output
@@ -315,10 +331,12 @@ void ExtractDialog::setExtracting(bool running)
     m_editDevicePath->setEnabled(!running);
     m_editNetworkAddr->setEnabled(!running);
     m_editOutputPath->setEnabled(!running);
+#ifndef SACD_NO_PS3DRIVE
     m_btnAuthenticate->setEnabled(!running);
     m_btnPair->setEnabled(!running);
     if (!running)
         updateDriveButtons();
+#endif
 }
 
 QString ExtractDialog::inputPath() const
@@ -330,6 +348,7 @@ QString ExtractDialog::inputPath() const
     }
 }
 
+#ifndef SACD_NO_PS3DRIVE
 void ExtractDialog::updateDriveButtons()
 {
     bool isDevice = (m_cboInputMode->currentData().toInt() == 0);
@@ -434,3 +453,4 @@ void ExtractDialog::slotDriveOperationFinished(int resultCode, const QString &me
         QMessageBox::critical(this, tr("Error"), message);
     }
 }
+#endif /* !SACD_NO_PS3DRIVE */

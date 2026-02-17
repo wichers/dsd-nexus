@@ -23,7 +23,9 @@ class QThread;
 QT_END_NAMESPACE
 
 class ExtractWorker;
+#ifndef SACD_NO_PS3DRIVE
 class Ps3DriveWorker;
+#endif
 
 /**
  * @brief Dialog for extracting SACD disc images from PS3 drives or network.
@@ -47,9 +49,11 @@ private slots:
     void slotProgressUpdated(uint32_t currentSector, uint32_t totalSectors,
                              double speedMBs);
     void slotFinished(int resultCode, const QString &errorMessage);
+#ifndef SACD_NO_PS3DRIVE
     void slotAuthenticateDrive();
     void slotPairDrive();
     void slotDriveOperationFinished(int resultCode, const QString &message);
+#endif
 
 private:
     // Input
@@ -69,19 +73,25 @@ private:
     QPushButton *m_btnStart;
     QPushButton *m_btnCancel;
     QPushButton *m_btnClose;
+#ifndef SACD_NO_PS3DRIVE
     QPushButton *m_btnAuthenticate;
     QPushButton *m_btnPair;
+#endif
 
     // Worker
     QThread *m_thread;
     ExtractWorker *m_worker;
+#ifndef SACD_NO_PS3DRIVE
     QThread *m_driveThread;
     Ps3DriveWorker *m_driveWorker;
+#endif
 
     void setupUi();
     void setExtracting(bool running);
+#ifndef SACD_NO_PS3DRIVE
     void setDriveOperationRunning(bool running);
     void updateDriveButtons();
+#endif
     QString inputPath() const;
 };
 
