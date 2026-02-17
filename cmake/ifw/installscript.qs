@@ -1,4 +1,4 @@
-// Qt Installer Framework - install script for Nexus Forge
+// Qt Installer Framework - install script for DSD Nexus
 // Creates platform-specific shortcuts and integrations
 
 function Component()
