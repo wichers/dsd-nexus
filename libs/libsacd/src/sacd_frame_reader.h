@@ -243,6 +243,7 @@ static inline int sacd_frame_reader_destroy(sacd_frame_reader_t *ctx)
         return SACD_INPUT_ERR_NULL_PTR;
     }
     ctx->ops->destroy(ctx);
+    return SACD_INPUT_OK;
 }
 
 /**
