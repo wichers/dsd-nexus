@@ -140,6 +140,7 @@ set(SAUTIL_HEADERS
     tree.h
     va_copy.h
     win_utf8_io.h
+    c11threads.h
     msvc/stdatomic.h
 )
 

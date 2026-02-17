@@ -38,7 +38,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __APPLE__
+#include "c11threads.h"
+#else
 #include <threads.h>
+#endif
 #include "bprint.h"
 #include "common.h"
 #include "internal.h"
