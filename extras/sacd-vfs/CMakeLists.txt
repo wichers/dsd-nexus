@@ -217,30 +217,17 @@ endif()
 # Link libraries (statically linked via OBJECT libraries, not the full libdsd umbrella)
 # OBJECT libraries don't propagate object files transitively (requires CMake 3.21+),
 # so every OBJECT lib in the dependency chain must be listed explicitly.
-# Dependency chain: libsacdvfs -> libsacd, libdst -> [libps3drive -> libsg3] -> sautil
-set(_sacd_vfs_libs libsacdvfs libsacd libdst sautil)
-if(BUILD_PS3DRIVE)
-    list(APPEND _sacd_vfs_libs libps3drive libsg3)
-endif()
-set(_sacd_vfs_ext_deps id3dev)
-if(BUILD_PS3DRIVE)
-    list(APPEND _sacd_vfs_ext_deps nanopb tinycsocket)
-endif()
+# Dependency chain: libsacdvfs -> libsacd_lite, libdst -> sautil
+# Uses libsacd_lite (compiled without PS3 drive) to keep sacd-vfs small and
+# free of mbedtls/PS3 dependencies — it only reads ISO files.
 target_link_libraries(sacd-vfs
     PRIVATE
-        ${_sacd_vfs_libs}
+        libsacdvfs libsacd_lite libdst sautil
         ${FUSE_LIBRARIES}
         # External deps of OBJECT libraries that don't propagate transitively
-        ${_sacd_vfs_ext_deps}
+        id3dev
 )
-if(NOT BUILD_PS3DRIVE)
-    target_compile_definitions(sacd-vfs PRIVATE SACD_NO_PS3DRIVE)
-endif()
-if(TARGET mbedcrypto)
-    target_link_libraries(sacd-vfs PRIVATE mbedcrypto)
-elseif(TARGET MbedTLS::mbedcrypto)
-    target_link_libraries(sacd-vfs PRIVATE MbedTLS::mbedcrypto)
-endif()
+target_compile_definitions(sacd-vfs PRIVATE SACD_NO_PS3DRIVE)
 if(APPLE)
     target_link_libraries(sacd-vfs PRIVATE iconv)
 endif()

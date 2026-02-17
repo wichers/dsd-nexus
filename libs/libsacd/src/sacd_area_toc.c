@@ -400,8 +400,27 @@ int sacd_area_toc_read(area_toc_t *ctx, uint32_t toc_copy_index, uint32_t toc_ar
         current_track->track_flag_tmf4   = track_list2->info_2[track_num].track_flag_tmf4 == 1;
         current_track->track_flag_ilp    = track_list2->info_2[track_num].track_flag_ilp == 1;
         
-        current_track->track_start_lsn   = ntoh32(track_list1->track_start_lsn[track_num]);
-        current_track->track_sector_length = ntoh32(track_list1->track_length[track_num]);
+        /* Track start LSN: first track starts at the area-level track_area_start
+         * instead of track_start_lsn[0]. On some discs these differ, and the area
+         * start is the authoritative beginning of audio data.
+         * Matches foo_input_sacd EDITED_MASTER_TRACK behavior. */
+        if (track_num == 0) {
+            current_track->track_start_lsn = ctx->track_area_start;
+        } else {
+            current_track->track_start_lsn = ntoh32(track_list1->track_start_lsn[track_num]);
+        }
+
+        /* Track sector length: use contiguous layout based on next track's start
+         * (or area end for the last track) instead of stored lengths, ensuring
+         * no sectors are missed between tracks. */
+        if (track_num + 1 < ctx->track_count) {
+            current_track->track_sector_length =
+                ntoh32(track_list1->track_start_lsn[track_num + 1])
+                - current_track->track_start_lsn + 1;
+        } else {
+            current_track->track_sector_length =
+                ctx->track_area_end - current_track->track_start_lsn + 1;
+        }
         current_track->index_start       = NULL;
 
         // --- Index Points ---
