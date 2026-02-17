@@ -157,32 +157,21 @@ set(SAUTIL_HEADERS
 #    )
 #endif()
 
-# ARM specific files
-if(ARCH_ARM)
-    list(APPEND SAUTIL_SOURCES
-        arm/cpu.c
-    )
+# Architecture-specific CPU detection files (optional, only included if present)
+if(ARCH_ARM AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/arm/cpu.c")
+    list(APPEND SAUTIL_SOURCES arm/cpu.c)
 endif()
 
-# ARM64/AArch64 specific files
-if(ARCH_AARCH64)
-    list(APPEND SAUTIL_SOURCES
-        aarch64/cpu.c
-    )
+if(ARCH_AARCH64 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/aarch64/cpu.c")
+    list(APPEND SAUTIL_SOURCES aarch64/cpu.c)
 endif()
 
-# MIPS specific files
-if(ARCH_MIPS OR ARCH_MIPS64)
-    list(APPEND SAUTIL_SOURCES
-        mips/cpu.c
-    )
+if((ARCH_MIPS OR ARCH_MIPS64) AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mips/cpu.c")
+    list(APPEND SAUTIL_SOURCES mips/cpu.c)
 endif()
 
-# RISC-V specific files
-if(ARCH_RISCV)
-    list(APPEND SAUTIL_SOURCES
-        riscv/cpu.c
-    )
+if(ARCH_RISCV AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/riscv/cpu.c")
+    list(APPEND SAUTIL_SOURCES riscv/cpu.c)
 endif()
 
 ###########################################################
