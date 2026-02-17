@@ -3,7 +3,7 @@
 # =============================================================================
 
 # Source files (in src/)
-set(LIBSACD_SOURCES
+set(LIBSACD_BASE_SOURCES
     src/sacd_charset.c
     src/sacd_genre_tables.c
     src/sacd_dst_reader.c
@@ -15,6 +15,7 @@ set(LIBSACD_SOURCES
     src/sacd_input.c
     src/sacd_input_file.c
 )
+set(LIBSACD_SOURCES ${LIBSACD_BASE_SOURCES})
 
 if(BUILD_PS3DRIVE)
     list(APPEND LIBSACD_SOURCES
@@ -95,6 +96,33 @@ configure_version_header(
     PRODUCT     "libsacd"
     VERSION     ${CMAKE_PROJECT_VERSION}
     OUTPUT_DIR  ${CMAKE_CURRENT_BINARY_DIR}/include/libsacd
+)
+
+# =============================================================================
+# libsacd_lite - Standalone OBJECT target without PS3 drive support.
+# Used by sacd-vfs which reads ISO files only and never needs PS3 drive code.
+# =============================================================================
+
+add_library(libsacd_lite OBJECT
+    ${LIBSACD_BASE_SOURCES}
+    ${LIBSACD_PUBLIC_HEADERS}
+    ${LIBSACD_PRIVATE_HEADERS}
+)
+
+target_include_directories(libsacd_lite
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(libsacd_lite PUBLIC sautil)
+target_compile_definitions(libsacd_lite PRIVATE SACD_NO_PS3DRIVE)
+
+# Share the same version header as libsacd
+target_include_directories(libsacd_lite PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
 )
 
 # Export macros and installation handled by umbrella library (libdsd)

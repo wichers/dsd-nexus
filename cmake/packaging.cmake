@@ -152,7 +152,7 @@ if(UNIX AND NOT APPLE)
     # -- RPM-specific configuration --------------------------------------------
 
     set(CPACK_RPM_SACD_VFS_PACKAGE_NAME "sacd-vfs")
-    set(CPACK_RPM_SACD_VFS_PACKAGE_REQUIRES "fuse3 >= 3.10, mbedtls >= 3.0")
+    set(CPACK_RPM_SACD_VFS_PACKAGE_REQUIRES "fuse3 >= 3.10")
     set(CPACK_RPM_SACD_VFS_PACKAGE_GROUP "Applications/Multimedia")
     set(CPACK_RPM_PACKAGE_LICENSE "LGPL-2.1-or-later")
     set(CPACK_RPM_SACD_VFS_PACKAGE_LICENSE "LGPL-2.1-or-later")
