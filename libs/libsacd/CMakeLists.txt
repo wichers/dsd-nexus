@@ -14,13 +14,15 @@ set(LIBSACD_SOURCES
     src/sacd_master_toc.c
     src/sacd_input.c
     src/sacd_input_file.c
-    src/sacd_input_network.c
-    src/sacd_pb_stream.c
-    proto/sacd_ripper.pb.c
 )
 
 if(BUILD_PS3DRIVE)
-    list(APPEND LIBSACD_SOURCES src/sacd_input_ps3drive.c)
+    list(APPEND LIBSACD_SOURCES
+        src/sacd_input_ps3drive.c
+        src/sacd_input_network.c
+        src/sacd_pb_stream.c
+        proto/sacd_ripper.pb.c
+    )
 endif()
 
 # Public headers (in include/sacd/)
@@ -39,9 +41,14 @@ set(LIBSACD_PRIVATE_HEADERS
     src/sacd_dst_reader.h
     src/sacd_area_toc.h
     src/sacd_frame_reader.h
-    src/sacd_pb_stream.h
-    proto/sacd_ripper.pb.h
 )
+
+if(BUILD_PS3DRIVE)
+    list(APPEND LIBSACD_PRIVATE_HEADERS
+        src/sacd_pb_stream.h
+        proto/sacd_ripper.pb.h
+    )
+endif()
 
 # Create OBJECT library (combined into umbrella libdsd)
 add_library(libsacd OBJECT
@@ -57,8 +64,13 @@ target_include_directories(libsacd
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/proto
 )
+
+if(BUILD_PS3DRIVE)
+    target_include_directories(libsacd PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/proto
+    )
+endif()
 
 # Output directories handled by umbrella library (libdsd)
 
@@ -71,7 +83,6 @@ if(BUILD_PS3DRIVE)
 else()
     target_link_libraries(libsacd
         PUBLIC sautil
-        PRIVATE nanopb tinycsocket
     )
     target_compile_definitions(libsacd PRIVATE SACD_NO_PS3DRIVE)
 endif()

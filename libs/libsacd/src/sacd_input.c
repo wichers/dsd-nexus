@@ -166,6 +166,9 @@ int sacd_input_open(const char *path, sacd_input_t **out)
 
     /* Check for network path first (host:port pattern) */
     if (_is_network_path(path)) {
+#ifdef SACD_NO_PS3DRIVE
+        return SACD_INPUT_ERR_NOT_SUPPORTED;
+#else
         char host[256];
         const char *colon = strrchr(path, ':');
         size_t host_len = (size_t)(colon - path);
@@ -179,6 +182,7 @@ int sacd_input_open(const char *path, sacd_input_t **out)
 
         port = (uint16_t)atoi(colon + 1);
         return sacd_input_open_network(host, port, out);
+#endif
     }
 
     /* Check for device path */

@@ -276,8 +276,10 @@ SACD_API int sacd_input_open_file(const char *path, sacd_input_t **out);
  *         - SACD_INPUT_ERR_OUT_OF_MEMORY: Allocation failed
  *         - SACD_INPUT_ERR_NETWORK: Connection failed
  */
+#ifndef SACD_NO_PS3DRIVE
 SACD_API int sacd_input_open_network(const char *host, uint16_t port,
                                      sacd_input_t **out);
+#endif
 
 #ifndef SACD_NO_PS3DRIVE
 /**
