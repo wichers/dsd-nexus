@@ -183,7 +183,11 @@ int sacd_input_open(const char *path, sacd_input_t **out)
 
     /* Check for device path */
     if (_is_device_path(path)) {
+#ifdef SACD_NO_PS3DRIVE
+        return SACD_INPUT_ERR_NOT_SUPPORTED;
+#else
         return sacd_input_open_device(path, out);
+#endif
     }
 
     /* Default to file */

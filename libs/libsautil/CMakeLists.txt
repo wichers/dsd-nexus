@@ -212,9 +212,16 @@ add_library(sautil OBJECT ${SAUTIL_SOURCES} ${SAUTIL_HEADERS})
 # Per-file compile flags for third-party code
 if(NOT MSVC)
     # sxmlc.c: Suppress const-qualifier warnings (third-party code with intentional design)
-    set_source_files_properties(sxmlc.c PROPERTIES
-        COMPILE_FLAGS "-Wno-discarded-qualifiers"
-    )
+    # GCC uses -Wno-discarded-qualifiers, Clang uses -Wno-incompatible-pointer-types-discards-qualifiers
+    if(APPLE)
+        set_source_files_properties(sxmlc.c PROPERTIES
+            COMPILE_FLAGS "-Wno-incompatible-pointer-types-discards-qualifiers"
+        )
+    else()
+        set_source_files_properties(sxmlc.c PROPERTIES
+            COMPILE_FLAGS "-Wno-discarded-qualifiers"
+        )
+    endif()
 endif()
 
 ###########################################################
@@ -269,8 +276,13 @@ target_compile_definitions(sautil PRIVATE
     HAVE_SA_CONFIG_H  # Enable config.h inclusion in headers
 )
 
-# FFmpeg-style POSIX and feature test macros (Linux/Unix only)
-if(UNIX AND NOT APPLE)
+# FFmpeg-style POSIX and feature test macros
+if(APPLE)
+    target_compile_definitions(sautil PRIVATE
+        _FILE_OFFSET_BITS=64    # Large file support
+        PIC                     # Position-independent code
+    )
+elseif(UNIX)
     target_compile_definitions(sautil PRIVATE
         _ISOC11_SOURCE          # ISO C11 features
         _FILE_OFFSET_BITS=64    # Large file support
@@ -332,12 +344,16 @@ if(MSVC)
         )
     endif()
 else()
+    # Force include system time.h first to prevent local time.h from shadowing it
+    if(APPLE)
+        # macOS: headers are in the SDK, use the compiler's default search path
+        target_compile_options(sautil PRIVATE -include time.h)
+    else()
+        target_compile_options(sautil PRIVATE -include /usr/include/time.h)
+    endif()
+
     # FFmpeg-style GCC/Clang flags
     target_compile_options(sautil PRIVATE
-        # Force include system time.h first to prevent local time.h from shadowing it
-        # Use full path to ensure we get the system header, not our local time.h
-        -include /usr/include/time.h
-
         # Basic flags
         -fomit-frame-pointer
         -fPIC
@@ -363,9 +379,7 @@ else()
         -Wno-format-zero-length
         -Wno-pointer-sign
         -Wno-unused-const-variable
-        -Wno-bool-operation
         -Wno-char-subscripts
-        -Wno-maybe-uninitialized
 
         # Warnings as errors (critical issues)
         -Werror=implicit-function-declaration
@@ -374,6 +388,11 @@ else()
         -Werror=return-type
         -Werror=vla
     )
+
+    # GCC-only warning flags (not supported by Apple Clang)
+    if(NOT APPLE)
+        target_compile_options(sautil PRIVATE -Wno-bool-operation -Wno-maybe-uninitialized)
+    endif()
 
     # Optimization flags for Release builds
     target_compile_options(sautil PRIVATE

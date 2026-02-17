@@ -279,6 +279,7 @@ SACD_API int sacd_input_open_file(const char *path, sacd_input_t **out);
 SACD_API int sacd_input_open_network(const char *host, uint16_t port,
                                      sacd_input_t **out);
 
+#ifndef SACD_NO_PS3DRIVE
 /**
  * @brief Open a physical device (Bluray/DVD drive).
  *
@@ -295,6 +296,7 @@ SACD_API int sacd_input_open_network(const char *host, uint16_t port,
  *         - SACD_INPUT_ERR_NOT_SUPPORTED: Platform does not support device access
  */
 SACD_API int sacd_input_open_device(const char *device, sacd_input_t **out);
+#endif
 
 /**
  * @brief Auto-detect and open the appropriate input type.

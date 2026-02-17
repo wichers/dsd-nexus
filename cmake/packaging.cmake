@@ -37,6 +37,8 @@ set(CPACK_RPM_COMPONENT_INSTALL ON)
 
 if(WIN32)
     set(CPACK_GENERATOR "IFW")
+elseif(APPLE)
+    set(CPACK_GENERATOR "DragNDrop;TGZ")
 else()
     set(CPACK_GENERATOR "DEB;RPM;TGZ")
 endif()

@@ -15,10 +15,13 @@ set(LIBSACD_SOURCES
     src/sacd_input.c
     src/sacd_input_file.c
     src/sacd_input_network.c
-    src/sacd_input_ps3drive.c
     src/sacd_pb_stream.c
     proto/sacd_ripper.pb.c
 )
+
+if(BUILD_PS3DRIVE)
+    list(APPEND LIBSACD_SOURCES src/sacd_input_ps3drive.c)
+endif()
 
 # Public headers (in include/sacd/)
 set(LIBSACD_PUBLIC_HEADERS
@@ -60,10 +63,18 @@ target_include_directories(libsacd
 # Output directories handled by umbrella library (libdsd)
 
 # Link libraries (PUBLIC so consumers of libsacd also link against dependencies)
-target_link_libraries(libsacd
-    PUBLIC sautil libps3drive
-    PRIVATE nanopb tinycsocket
-)
+if(BUILD_PS3DRIVE)
+    target_link_libraries(libsacd
+        PUBLIC sautil libps3drive
+        PRIVATE nanopb tinycsocket
+    )
+else()
+    target_link_libraries(libsacd
+        PUBLIC sautil
+        PRIVATE nanopb tinycsocket
+    )
+    target_compile_definitions(libsacd PRIVATE SACD_NO_PS3DRIVE)
+endif()
 
 # Version configuration
 configure_version_header(

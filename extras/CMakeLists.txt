@@ -5,7 +5,9 @@
 # =============================================================================
 # ps3drive-tool: PS3 BluRay Drive Utility
 # =============================================================================
-add_subdirectory(ps3-drive)
+if(BUILD_PS3DRIVE)
+    add_subdirectory(ps3-drive)
+endif()
 
 # =============================================================================
 # SACD VFS Mount - Cross-platform FUSE adapter
