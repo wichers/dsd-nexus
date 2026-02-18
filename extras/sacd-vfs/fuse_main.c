@@ -25,6 +25,7 @@
 
 #include <libsacdvfs/sacd_overlay.h>
 #include <libsautil/log.h>
+#include <libsautil/sastring.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +54,8 @@ typedef struct {
     int max_isos;
     int foreground;
     int debug;
+    int verbose;        /* verbosity counter: -v increments */
+    int log_level;      /* explicit level from --log-level, or -1 if unset */
     int help;
     int stereo;         /* 1 = show stereo, 0 = hide (with fallback) */
     int multichannel;   /* 1 = show multichannel, 0 = hide (with fallback) */
@@ -66,6 +69,8 @@ static mount_options_t g_options = {
     0,      /* max_isos - Unlimited */
     0,      /* foreground */
     0,      /* debug */
+    0,      /* verbose */
+    -1,     /* log_level - Unset */
     0,      /* help */
     1,      /* stereo - Show by default */
     1       /* multichannel - Show by default */
@@ -74,6 +79,23 @@ static mount_options_t g_options = {
 /* Global context for signal handler */
 static sacd_overlay_ctx_t *g_ctx = NULL;
 static struct fuse *g_fuse = NULL;
+/* =============================================================================
+ * Log Level Name Parser
+ * ===========================================================================*/
+
+static int _parse_log_level(const char *name)
+{
+    if (sa_strcasecmp(name, "quiet") == 0)   return SA_LOG_QUIET;
+    if (sa_strcasecmp(name, "panic") == 0)   return SA_LOG_PANIC;
+    if (sa_strcasecmp(name, "fatal") == 0)   return SA_LOG_FATAL;
+    if (sa_strcasecmp(name, "error") == 0)   return SA_LOG_ERROR;
+    if (sa_strcasecmp(name, "warning") == 0) return SA_LOG_WARNING;
+    if (sa_strcasecmp(name, "info") == 0)    return SA_LOG_INFO;
+    if (sa_strcasecmp(name, "verbose") == 0) return SA_LOG_VERBOSE;
+    if (sa_strcasecmp(name, "debug") == 0)   return SA_LOG_DEBUG;
+    if (sa_strcasecmp(name, "trace") == 0)   return SA_LOG_TRACE;
+    return -1;
+}
 
 /* =============================================================================
  * Signal Handling
@@ -141,8 +163,10 @@ static void print_usage(const char *prog)
         "  /max_isos:N         Maximum concurrent ISO mounts (default: unlimited)\n"
         "  /no_stereo          Hide stereo area (unless it's the only area)\n"
         "  /no_multichannel    Hide multichannel area (unless it's the only area)\n"
+        "  /v                  Increase verbosity (-v=verbose, -vv=debug, -vvv=trace)\n"
+        "  /log_level:LEVEL    Set log level (quiet/error/warning/info/verbose/debug/trace)\n"
         "  /f                  Foreground mode (don't daemonize)\n"
-        "  /d                  Debug mode (implies /f, verbose logging)\n"
+        "  /d                  Debug mode (implies /f, enables FUSE debug output)\n"
         "  /h, /help           Show this help message\n"
 #else
         "  -o threads=N        Number of DST decoder threads (default: auto)\n"
@@ -150,8 +174,10 @@ static void print_usage(const char *prog)
         "  -o max_isos=N       Maximum concurrent ISO mounts (default: unlimited)\n"
         "  -o no_stereo        Hide stereo area (unless it's the only area)\n"
         "  -o no_multichannel  Hide multichannel area (unless it's the only area)\n"
+        "  -v                  Increase verbosity (-v=verbose, -vv=debug, -vvv=trace)\n"
+        "  -o log_level=LEVEL  Set log level (quiet/error/warning/info/verbose/debug/trace)\n"
         "  -f                  Foreground mode (don't daemonize)\n"
-        "  -d                  Debug mode (implies -f, verbose logging)\n"
+        "  -d                  Debug mode (implies -f, enables FUSE debug output)\n"
         "  -h, --help          Show this help message\n"
 #endif
         "\n"
@@ -192,9 +218,17 @@ static int parse_options(int argc, char *argv[])
                 g_options.max_isos = atoi(opt + 9);
             } else if (strcmp(opt, "f") == 0) {
                 g_options.foreground = 1;
+            } else if (strcmp(opt, "v") == 0) {
+                g_options.verbose++;
             } else if (strcmp(opt, "d") == 0) {
                 g_options.debug = 1;
                 g_options.foreground = 1;
+            } else if (strncmp(opt, "log_level:", 10) == 0) {
+                g_options.log_level = _parse_log_level(opt + 10);
+                if (g_options.log_level < 0) {
+                    fprintf(stderr, "Unknown log level: %s\n", opt + 10);
+                    return -1;
+                }
             } else if (strcmp(opt, "no_stereo") == 0) {
                 g_options.stereo = 0;
             } else if (strcmp(opt, "no_multichannel") == 0) {
@@ -235,7 +269,7 @@ static int parse_options(int argc, char *argv[])
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "fdo:h", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "fdvo:h", long_options, NULL)) != -1) {
         switch (opt) {
         case 'f':
             g_options.foreground = 1;
@@ -243,6 +277,9 @@ static int parse_options(int argc, char *argv[])
         case 'd':
             g_options.debug = 1;
             g_options.foreground = 1;
+            break;
+        case 'v':
+            g_options.verbose++;
             break;
         case 'o':
             /* Parse -o options */
@@ -256,6 +293,12 @@ static int parse_options(int argc, char *argv[])
                 g_options.stereo = 0;
             } else if (strcmp(optarg, "no_multichannel") == 0) {
                 g_options.multichannel = 0;
+            } else if (strncmp(optarg, "log_level=", 10) == 0) {
+                g_options.log_level = _parse_log_level(optarg + 10);
+                if (g_options.log_level < 0) {
+                    fprintf(stderr, "Unknown log level: %s\n", optarg + 10);
+                    return -1;
+                }
             }
             /* Other -o options are passed to FUSE */
             break;
@@ -318,9 +361,27 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    /* Configure log level */
-    if (g_options.debug) {
+    /* Configure log level:
+     *   -d           → SA_LOG_DEBUG (+ FUSE debug output)
+     *   -v           → SA_LOG_VERBOSE
+     *   -vv          → SA_LOG_DEBUG
+     *   -vvv         → SA_LOG_TRACE
+     *   -o log_level → explicit override */
+    if (g_options.log_level >= 0) {
+        sa_log_set_level(g_options.log_level);
+    } else if (g_options.debug) {
         sa_log_set_level(SA_LOG_DEBUG);
+    } else if (g_options.verbose >= 3) {
+        sa_log_set_level(SA_LOG_TRACE);
+    } else if (g_options.verbose >= 2) {
+        sa_log_set_level(SA_LOG_DEBUG);
+    } else if (g_options.verbose >= 1) {
+        sa_log_set_level(SA_LOG_VERBOSE);
+    }
+
+    /* Enable timestamps and level prefixes when verbose */
+    if (g_options.verbose || g_options.debug) {
+        sa_log_set_flags(SA_LOG_PRINT_LEVEL | SA_LOG_PRINT_TIME);
     }
 
     /* Create overlay context */

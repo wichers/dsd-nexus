@@ -43,6 +43,13 @@ if [ -n "$MAX_ISOS" ] && [ "$MAX_ISOS" != "0" ]; then
     OPTS="$OPTS -o max_isos=$MAX_ISOS"
 fi
 
+V="${VERBOSE:-0}"
+i=0
+while [ "$i" -lt "$V" ]; do
+    OPTS="$OPTS -v"
+    i=$((i + 1))
+done
+
 if [ -n "$EXTRA_OPTS" ]; then
     OPTS="$OPTS $EXTRA_OPTS"
 fi
