@@ -201,6 +201,7 @@ struct sacd_vfs_file {
     vfs_mt_cmd_t command;           /* Current command for reader thread */
     uint32_t mt_seek_frame;         /* Target frame for SEEK command */
     int mt_errcode;                 /* Error code from reader thread */
+    int audio_early_eof;            /* Non-zero: audio ended before metadata_offset (mastering issue) */
     sa_buffer_pool_t *compressed_pool;   /* Pool for compressed DST frame buffers */
     sa_buffer_pool_t *decompressed_pool; /* Pool for decompressed DSD frame buffers */
 };
@@ -1282,6 +1283,7 @@ int sacd_vfs_file_seek(sacd_vfs_file_t *file, int64_t offset, int whence)
     }
 
     file->position = (uint64_t)new_pos;
+    file->audio_early_eof = 0;
 
     /* Invalidate transform buffer on seek */
     file->transform_buffer_pos = 0;
@@ -2388,6 +2390,23 @@ static int _transform_dsd_frame(sacd_vfs_file_t *file, const uint8_t *src, size_
 
 static int _read_audio_region(sacd_vfs_file_t *file, uint8_t *buffer, size_t size, size_t *bytes_read)
 {
+    /* Audio ended before metadata_offset (disc mastering discrepancy: TOC frame count
+     * is larger than the actual compressed frame data).  Fill the gap with DSD silence.
+     * DSF stores DSD data LSB-first, so the silence pattern is 0x96 (bit-reversal of the
+     * standard noise-shaped 0x69 pattern used in DSDIFF/MSB-first DSD streams). */
+    if (file->audio_early_eof && file->position < file->info.metadata_offset) {
+        if (size == 0) {
+            *bytes_read = 0;
+            return SACD_VFS_OK;
+        }
+        size_t gap = (size_t)(file->info.metadata_offset - file->position);
+        size_t to_fill = (gap < size) ? gap : size;
+        memset(buffer, 0x96, to_fill);
+        file->position += to_fill;
+        *bytes_read = to_fill;
+        return SACD_VFS_OK;
+    }
+
     if (file->mt_enabled) {
         return _read_audio_region_mt(file, buffer, size, bytes_read);
     }
@@ -2450,13 +2469,16 @@ static int _read_audio_region(sacd_vfs_file_t *file, uint8_t *buffer, size_t siz
 #endif
 
         if (result != SACD_OK || frames_to_read == 0) {
-            /* Debug: print detailed error info */
             VFS_DEBUG("VFS DEBUG: READ ERROR result=%d: track=%u, frame=%u/%u-%u\n",
                     result, file->track_num, file->current_frame, file->start_frame, file->end_frame);
-            if (total_read > 0) {
-                break;
+            /* Mark audio as exhausted; gap-fill with silence on next call */
+            if (!file->audio_early_eof) {
+                file->audio_early_eof = 1;
+                fprintf(stderr, "sacd_vfs: track %u audio ended at frame %u (expected %u),"
+                        " filling gap with silence\n",
+                        file->track_num, file->current_frame, file->end_frame);
             }
-            return SACD_VFS_ERROR_READ;
+            break;
         }
 
         file->current_frame++;
@@ -2563,6 +2585,12 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
             continue;
         }
 
+        /* If audio ended prematurely, do not block on an empty queue (deadlock prevention).
+         * The gap-fill path at the top of _read_audio_region() will supply silence. */
+        if (file->audio_early_eof) {
+            break;
+        }
+
         /* Pull next decoded result from the process queue (blocking) */
         sa_tpool_result *result = sa_tpool_next_result_wait(file->process);
         if (!result) {
@@ -2582,6 +2610,8 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
         /* Check for EOF sentinel */
         if (job->is_eof) {
             sa_free(job);
+            /* Mark audio as exhausted so subsequent calls fill silence instead of blocking */
+            file->audio_early_eof = 1;
             /* Flush any remaining buffered data with proper padding */
             if (file->bytes_buffered > 0) {
                 int flush_ret = _flush_block_buffers(file);
@@ -2589,7 +2619,8 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
                     if (total_read > 0) break;
                     return flush_ret;
                 }
-                /* Continue loop to consume the flushed data */
+                /* Continue loop to consume the flushed data; audio_early_eof check
+                 * above will exit before calling sa_tpool_next_result_wait again */
                 continue;
             }
             break;
@@ -2599,9 +2630,16 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
         if (job->error_code != 0 || !job->decompressed_data || job->decompressed_size <= 0) {
             VFS_DEBUG("VFS DEBUG: MT decode error %d at frame %u\n",
                       job->error_code, job->frame_number);
+            /* Treat decode errors as early EOF: disc may have corrupt/padding frames
+             * past the real audio end.  Fill the remainder with silence. */
+            if (!file->audio_early_eof) {
+                file->audio_early_eof = 1;
+                fprintf(stderr, "sacd_vfs: track %u MT decode error at frame %u,"
+                        " filling gap with silence\n",
+                        file->track_num, job->frame_number);
+            }
             _vfs_job_cleanup(job);
-            if (total_read > 0) break;
-            return SACD_VFS_ERROR_DST_DECODE;
+            break;
         }
 
         /* Transform the decoded DSD frame */
