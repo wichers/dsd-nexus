@@ -6,7 +6,7 @@ pkgdesc='SACD Virtual Filesystem - mount SACD ISOs as directories with DSF files
 arch=('x86_64' 'aarch64')
 url='https://github.com/wichers/dsd-nexus'
 license=('LGPL-2.1-or-later')
-depends=('fuse3' 'mbedtls' 'bash')
+depends=('fuse3' 'bash')
 makedepends=('cmake' 'gcc' 'git')
 backup=('etc/sacd-vfs/sacd-vfs.conf')
 source=("git+https://github.com/wichers/dsd-nexus.git#tag=v${pkgver}")
@@ -18,7 +18,8 @@ build() {
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DBUILD_TESTS=OFF \
-        -DBUILD_EXAMPLES=OFF
+        -DBUILD_EXAMPLES=OFF \
+        -DSACD_VFS_ONLY=ON
     cmake --build build --target sacd-vfs
 }
 
