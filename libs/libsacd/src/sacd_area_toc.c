@@ -400,15 +400,11 @@ int sacd_area_toc_read(area_toc_t *ctx, uint32_t toc_copy_index, uint32_t toc_ar
         current_track->track_flag_tmf4   = track_list2->info_2[track_num].track_flag_tmf4 == 1;
         current_track->track_flag_ilp    = track_list2->info_2[track_num].track_flag_ilp == 1;
         
-        /* Track start LSN: first track starts at the area-level track_area_start
-         * instead of track_start_lsn[0]. On some discs these differ, and the area
-         * start is the authoritative beginning of audio data.
-         * Matches foo_input_sacd EDITED_MASTER_TRACK behavior. */
-        if (track_num == 0) {
-            current_track->track_start_lsn = ctx->track_area_start;
-        } else {
-            current_track->track_start_lsn = ntoh32(track_list1->track_start_lsn[track_num]);
-        }
+        /* Track start LSN: per the SACD spec (§3.2.2.2), Track_Start_Address[tno]
+         * is the LSN of the first sector of Track[tno], which follows Pause[tno].
+         * Track_Area_Start_Address points to the start of Pause[1], not Track[1].
+         * All tracks use the per-track start address from Track_List_1. */
+        current_track->track_start_lsn = ntoh32(track_list1->track_start_lsn[track_num]);
 
         /* Track sector length: use contiguous layout based on next track's start
          * (or area end for the last track) instead of stored lengths, ensuring
