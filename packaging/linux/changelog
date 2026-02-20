@@ -1,3 +1,18 @@
+sacd-vfs (0.1.83-1) unstable; urgency=medium
+
+  * Fix early-EOF deadlock when DST audio ends before TOC frame count
+  * Fill silence gaps (0x96 DSF pattern) instead of hanging on short tracks
+  * Convert VFS_DEBUG from compile-time macro to runtime sa_log(DEBUG)
+  * Add -v verbose flag (stackable: -v=verbose, -vv=debug, -vvv=trace)
+  * Add -o log_level=LEVEL for explicit log level control
+  * Enable timestamps and level prefixes in verbose/debug modes
+  * Replace fprintf(stderr) warnings with sa_log(WARNING)
+  * Add VERBOSE knob to systemd configuration
+  * Remove mbedTLS dependency (no longer needed)
+  * Add SACD_VFS_ONLY cmake option for standalone builds
+
+ -- Alexander Wichers <sander.wichers@gmail.com>  Wed, 18 Feb 2026 00:00:00 +0000
+
 sacd-vfs (0.1.81-1) unstable; urgency=low
 
   * Initial release

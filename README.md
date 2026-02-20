@@ -323,7 +323,7 @@ Replace `-G DEB` with `-G RPM` for an RPM package, or `-G TGZ` for a tarball.
 ### Building on a Native Linux Host
 
 ```bash
-sudo apt install libfuse3-dev libmbedtls-dev   # Debian/Ubuntu
+sudo apt install libfuse3-dev   # Debian/Ubuntu
 cmake -B build-pkg -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
       -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF -DSACD_VFS_ONLY=ON
 cmake --build build-pkg --target sacd-vfs -j$(nproc)

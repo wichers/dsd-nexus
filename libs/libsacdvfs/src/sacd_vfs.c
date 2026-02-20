@@ -37,6 +37,7 @@
 #include <libsautil/sastring.h>
 #include <libsautil/sa_tpool.h>
 #include <libsautil/base64.h>
+#include <libsautil/log.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,14 +59,9 @@
 /* Performance profiling - set to 1 to enable timing output */
 #define VFS_PROFILE_ENABLED 0
 
-/* Debug output control - set to 1 to enable verbose debug output */
-#define VFS_DEBUG_ENABLED 0
-
-#if VFS_DEBUG_ENABLED
-#define VFS_DEBUG(...) fprintf(stderr, __VA_ARGS__)
-#else
-#define VFS_DEBUG(...) ((void)0)
-#endif
+/* Debug output uses sa_log at DEBUG level.
+ * Filtered out at runtime when log level < SA_LOG_DEBUG (default).
+ * Enable with: sacd-vfs -vv  or  sa_log_set_level(SA_LOG_DEBUG) */
 
 /* Debug sequence counter */
 static volatile uint32_t g_vfs_debug_seq = 0;
@@ -201,6 +197,7 @@ struct sacd_vfs_file {
     vfs_mt_cmd_t command;           /* Current command for reader thread */
     uint32_t mt_seek_frame;         /* Target frame for SEEK command */
     int mt_errcode;                 /* Error code from reader thread */
+    int audio_early_eof;            /* Non-zero: audio ended before metadata_offset (mastering issue) */
     sa_buffer_pool_t *compressed_pool;   /* Pool for compressed DST frame buffers */
     sa_buffer_pool_t *decompressed_pool; /* Pool for decompressed DSD frame buffers */
 };
@@ -327,19 +324,19 @@ int sacd_vfs_open(sacd_vfs_ctx_t *ctx, const char *iso_path)
     uint16_t channel_count = 2;
     result = sacd_get_available_channel_types(ctx->reader, available_channels, &channel_count);
 
-    VFS_DEBUG("VFS DEBUG: sacd_vfs_open: found %u areas\n", channel_count);
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: sacd_vfs_open: found %u areas\n", channel_count);
 
     for (uint16_t i = 0; i < channel_count && i < 2; i++) {
         int area_idx = (available_channels[i] == MULTI_CHANNEL) ? 1 : 0;
         ctx->areas[area_idx].available = true;
 
-        VFS_DEBUG("VFS DEBUG: sacd_vfs_open: area[%u] = %s (channel_type=%d)\n",
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: sacd_vfs_open: area[%u] = %s (channel_type=%d)\n",
                 i, area_idx == 0 ? "STEREO" : "MULTICHANNEL", available_channels[i]);
 
         /* Select area to get info */
         int sel_result = sacd_select_channel_type(ctx->reader, available_channels[i]);
         if (sel_result != SACD_OK) {
-            VFS_DEBUG("VFS DEBUG: sacd_vfs_open: select_channel_type failed: %d\n", sel_result);
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: sacd_vfs_open: select_channel_type failed: %d\n", sel_result);
             continue;
         }
 
@@ -347,7 +344,7 @@ int sacd_vfs_open(sacd_vfs_ctx_t *ctx, const char *iso_path)
         sacd_get_track_count(ctx->reader, &track_count);
         ctx->areas[area_idx].track_count = track_count;
 
-        VFS_DEBUG("VFS DEBUG: sacd_vfs_open: area_idx=%d, select_result=%d, track_count=%u\n",
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: sacd_vfs_open: area_idx=%d, select_result=%d, track_count=%u\n",
                 area_idx, sel_result, track_count);
 
         uint16_t ch_count = 0;
@@ -540,7 +537,7 @@ int sacd_vfs_get_track_filename(sacd_vfs_ctx_t *ctx, sacd_vfs_area_t area,
     channel_t ch_type = (area == SACD_VFS_AREA_MULTICHANNEL) ? MULTI_CHANNEL : TWO_CHANNEL;
     int select_result = sacd_select_channel_type(ctx->reader, ch_type);
     if (select_result != SACD_OK) {
-        VFS_DEBUG("VFS DEBUG: get_track_filename: FAILED to select ch_type=%d, result=%d\n",
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: get_track_filename: FAILED to select ch_type=%d, result=%d\n",
                 ch_type, select_result);
         /* Fallback to generic name */
         snprintf(filename, size, "%02d. Track %02d.dsf", track_num, track_num);
@@ -550,7 +547,7 @@ int sacd_vfs_get_track_filename(sacd_vfs_ctx_t *ctx, sacd_vfs_area_t area,
     /* Debug: verify area selection */
     uint8_t verify_tracks = 0;
     sacd_get_track_count(ctx->reader, &verify_tracks);
-    VFS_DEBUG("VFS DEBUG: get_track_filename: area=%d, ch_type=%d, tracks=%u (requested track %u)\n",
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: get_track_filename: area=%d, ch_type=%d, tracks=%u (requested track %u)\n",
             area, ch_type, verify_tracks, track_num);
 
     const char *track_title = NULL;
@@ -559,11 +556,11 @@ int sacd_vfs_get_track_filename(sacd_vfs_ctx_t *ctx, sacd_vfs_area_t area,
     char title_buf[SACD_VFS_MAX_FILENAME];
     if (result == SACD_OK && track_title && track_title[0]) {
         sa_strlcpy(title_buf, track_title, sizeof(title_buf));
-        VFS_DEBUG("VFS DEBUG: get_track_filename: track %u raw title=\"%s\"\n", track_num, title_buf);
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: get_track_filename: track %u raw title=\"%s\"\n", track_num, title_buf);
         sa_sanitize_filename(title_buf, sizeof(title_buf));
     } else {
         snprintf(title_buf, sizeof(title_buf), "Track %02d", track_num);
-        VFS_DEBUG("VFS DEBUG: get_track_filename: track %u no title (result=%d)\n", track_num, result);
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: get_track_filename: track %u no title (result=%d)\n", track_num, result);
     }
 
     snprintf(filename, size, "%02d. %s.dsf", track_num, title_buf);
@@ -825,7 +822,7 @@ int sacd_vfs_file_open(sacd_vfs_ctx_t *ctx, const char *path, sacd_vfs_file_t **
 
     int result = sacd_init(f->reader, ctx->iso_path, 1, 1);
     if (result != SACD_OK) {
-        VFS_DEBUG("VFS DEBUG: Reader init failed: result=%d, iso=%s\n", result, ctx->iso_path);
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: Reader init failed: result=%d, iso=%s\n", result, ctx->iso_path);
         sacd_destroy(f->reader);
         sa_free(f);
         return SACD_VFS_ERROR_FORMAT;
@@ -835,13 +832,13 @@ int sacd_vfs_file_open(sacd_vfs_ctx_t *ctx, const char *path, sacd_vfs_file_t **
     channel_t avail_channels[2];
     uint16_t avail_count = 2;
     sacd_get_available_channel_types(f->reader, avail_channels, &avail_count);
-    VFS_DEBUG("VFS DEBUG: Reader init OK, available areas=%u\n", avail_count);
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: Reader init OK, available areas=%u\n", avail_count);
 
     /* Select area in this file's reader */
     channel_t ch_type = (area == SACD_VFS_AREA_MULTICHANNEL) ? MULTI_CHANNEL : TWO_CHANNEL;
     result = sacd_select_channel_type(f->reader, ch_type);
     if (result != SACD_OK) {
-        VFS_DEBUG("VFS DEBUG: Failed to select channel type %d: result=%d, area=%d\n", ch_type, result, area);
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: Failed to select channel type %d: result=%d, area=%d\n", ch_type, result, area);
         sacd_close(f->reader);
         sacd_destroy(f->reader);
         sa_free(f);
@@ -851,7 +848,7 @@ int sacd_vfs_file_open(sacd_vfs_ctx_t *ctx, const char *path, sacd_vfs_file_t **
     /* Debug: Verify selection worked */
     uint8_t verify_tracks = 0;
     sacd_get_track_count(f->reader, &verify_tracks);
-    VFS_DEBUG("VFS DEBUG: Channel type %d selected, track_count=%u\n", ch_type, verify_tracks);
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: Channel type %d selected, track_count=%u\n", ch_type, verify_tracks);
 
     /* Get track info */
     f->info.channel_count = ctx->areas[area].channel_count;
@@ -876,12 +873,12 @@ int sacd_vfs_file_open(sacd_vfs_ctx_t *ctx, const char *path, sacd_vfs_file_t **
     f->end_frame = index_start + track_frame_length;
     f->current_frame = f->start_frame;
 
-#if VFS_DEBUG_ENABLED    
     /* Debug: print frame range info and pointers */
-    uint32_t seq = ++g_vfs_debug_seq;
-    VFS_DEBUG("VFS DEBUG [%u]: File OPEN track %u: file=%p, reader=%p, index_start=%u, end_frame=%u\n",
-            seq, track_num, (void*)f, (void*)f->reader, index_start, f->end_frame);
-#endif
+    {
+        uint32_t seq = ++g_vfs_debug_seq;
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG [%u]: File OPEN track %u: file=%p, reader=%p, index_start=%u, end_frame=%u\n",
+                seq, track_num, (void*)f, (void*)f->reader, index_start, f->end_frame);
+    }
 
     /* Calculate sample count and duration.
      * For 1-bit DSD: sample_count = bytes_per_channel * 8 (8 samples per byte)
@@ -1076,7 +1073,7 @@ int sacd_vfs_file_open_mt(sacd_vfs_ctx_t *ctx, const char *path,
     f->reader_thread_active = 1;
     f->mt_enabled = 1;
 
-    VFS_DEBUG("VFS DEBUG: MT pipeline started for track %u (pool_size=%d, qsize=%d)\n",
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT pipeline started for track %u (pool_size=%d, qsize=%d)\n",
               f->track_num, sa_tpool_size(pool), qsize);
 
     return SACD_VFS_OK;
@@ -1088,11 +1085,11 @@ int sacd_vfs_file_close(sacd_vfs_file_t *file)
         return SACD_VFS_ERROR_INVALID_PARAMETER;
     }
 
-#if VFS_DEBUG_ENABLED    
-    uint32_t seq = ++g_vfs_debug_seq;
-    VFS_DEBUG("VFS DEBUG [%u]: File CLOSE track %u: file=%p, reader=%p\n",
-            seq, file->track_num, (void*)file, (void*)file->reader);
-#endif
+    {
+        uint32_t seq = ++g_vfs_debug_seq;
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG [%u]: File CLOSE track %u: file=%p, reader=%p\n",
+                seq, file->track_num, (void*)file, (void*)file->reader);
+    }
 
 #if VFS_PROFILE_ENABLED
     if (file->prof_frame_count > 0) {
@@ -1112,7 +1109,7 @@ int sacd_vfs_file_close(sacd_vfs_file_t *file)
 
     /* Shut down MT pipeline if active */
     if (file->mt_enabled) {
-        VFS_DEBUG("VFS DEBUG: Shutting down MT pipeline for track %u\n", file->track_num);
+        sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: Shutting down MT pipeline for track %u\n", file->track_num);
 
         /* Signal reader thread to close */
         mtx_lock(&file->command_mtx);
@@ -1239,6 +1236,11 @@ int sacd_vfs_file_read(sacd_vfs_file_t *file, uint8_t *buffer, size_t size, size
         remaining -= chunk_read;
 
         if (chunk_read == 0) {
+            /* If audio_early_eof was just set, the gap-fill path will serve
+             * data on the next iteration — don't break yet. */
+            if (file->audio_early_eof && file->position < file->info.metadata_offset) {
+                continue;
+            }
             break;
         }
     }
@@ -1282,6 +1284,7 @@ int sacd_vfs_file_seek(sacd_vfs_file_t *file, int64_t offset, int whence)
     }
 
     file->position = (uint64_t)new_pos;
+    file->audio_early_eof = 0;
 
     /* Invalidate transform buffer on seek */
     file->transform_buffer_pos = 0;
@@ -1678,7 +1681,7 @@ static int _vfs_reader_thread(void *arg)
 {
     sacd_vfs_file_t *file = (sacd_vfs_file_t *)arg;
 
-    VFS_DEBUG("VFS DEBUG: MT reader thread started for track %u\n", file->track_num);
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT reader thread started for track %u\n", file->track_num);
 
 restart:
     while (file->current_frame < file->end_frame) {
@@ -1688,12 +1691,12 @@ restart:
         mtx_unlock(&file->command_mtx);
 
         if (cmd == VFS_MT_CMD_CLOSE) {
-            VFS_DEBUG("VFS DEBUG: MT reader thread got CLOSE command\n");
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT reader thread got CLOSE command\n");
             return 0;
         }
 
         if (cmd == VFS_MT_CMD_SEEK) {
-            VFS_DEBUG("VFS DEBUG: MT reader thread got SEEK command to frame %u\n",
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT reader thread got SEEK command to frame %u\n",
                       file->mt_seek_frame);
 
             /* Reset the process queue: drains input, waits for processing,
@@ -1722,7 +1725,7 @@ restart:
                                                   &frames_to_read, &frame_size);
 
         if (result != SACD_OK || frames_to_read == 0) {
-            VFS_DEBUG("VFS DEBUG: MT reader thread read error at frame %u\n",
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT reader thread read error at frame %u\n",
                       file->current_frame);
             file->mt_errcode = SACD_VFS_ERROR_READ;
             break;
@@ -1818,7 +1821,7 @@ restart:
 
     mtx_unlock(&file->command_mtx);
 
-    VFS_DEBUG("VFS DEBUG: MT reader thread exiting for track %u\n", file->track_num);
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT reader thread exiting for track %u\n", file->track_num);
     return 0;
 }
 
@@ -2125,7 +2128,7 @@ static int _calculate_virtual_file_size(sacd_vfs_file_t *file)
     size_t num_blocks = (bytes_per_channel + DSF_BLOCK_SIZE_PER_CHANNEL - 1) / DSF_BLOCK_SIZE_PER_CHANNEL;
     file->info.audio_data_size = num_blocks * DSF_BLOCK_SIZE_PER_CHANNEL * file->info.channel_count;
 
-    VFS_DEBUG("VFS DEBUG: _calculate_virtual_file_size: start=%u end=%u frame_count=%u bytes_per_ch=%zu num_blocks=%zu audio_size=%llu\n",
+    sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: _calculate_virtual_file_size: start=%u end=%u frame_count=%u bytes_per_ch=%zu num_blocks=%zu audio_size=%llu\n",
               file->start_frame, file->end_frame, frame_count, bytes_per_channel, num_blocks,
               (unsigned long long)file->info.audio_data_size);
 
@@ -2388,6 +2391,23 @@ static int _transform_dsd_frame(sacd_vfs_file_t *file, const uint8_t *src, size_
 
 static int _read_audio_region(sacd_vfs_file_t *file, uint8_t *buffer, size_t size, size_t *bytes_read)
 {
+    /* Audio ended before metadata_offset (disc mastering discrepancy: TOC frame count
+     * is larger than the actual compressed frame data).  Fill the gap with DSD silence.
+     * DSF stores DSD data LSB-first, so the silence pattern is 0x96 (bit-reversal of the
+     * standard noise-shaped 0x69 pattern used in DSDIFF/MSB-first DSD streams). */
+    if (file->audio_early_eof && file->position < file->info.metadata_offset) {
+        if (size == 0) {
+            *bytes_read = 0;
+            return SACD_VFS_OK;
+        }
+        size_t gap = (size_t)(file->info.metadata_offset - file->position);
+        size_t to_fill = (gap < size) ? gap : size;
+        memset(buffer, 0x96, to_fill);
+        file->position += to_fill;
+        *bytes_read = to_fill;
+        return SACD_VFS_OK;
+    }
+
     if (file->mt_enabled) {
         return _read_audio_region_mt(file, buffer, size, bytes_read);
     }
@@ -2450,13 +2470,17 @@ static int _read_audio_region(sacd_vfs_file_t *file, uint8_t *buffer, size_t siz
 #endif
 
         if (result != SACD_OK || frames_to_read == 0) {
-            /* Debug: print detailed error info */
-            VFS_DEBUG("VFS DEBUG: READ ERROR result=%d: track=%u, frame=%u/%u-%u\n",
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: READ ERROR result=%d: track=%u, frame=%u/%u-%u\n",
                     result, file->track_num, file->current_frame, file->start_frame, file->end_frame);
-            if (total_read > 0) {
-                break;
+            /* Mark audio as exhausted; gap-fill with silence on next call */
+            if (!file->audio_early_eof) {
+                file->audio_early_eof = 1;
+                sa_log(NULL, SA_LOG_WARNING,
+                       "sacd_vfs: track %u audio ended at frame %u (expected %u),"
+                       " filling gap with silence\n",
+                       file->track_num, file->current_frame, file->end_frame);
             }
-            return SACD_VFS_ERROR_READ;
+            break;
         }
 
         file->current_frame++;
@@ -2487,7 +2511,7 @@ static int _read_audio_region(sacd_vfs_file_t *file, uint8_t *buffer, size_t siz
             file->prof_decode_ticks += t2.QuadPart - t1.QuadPart;
 #endif
             if (decode_result != 0 || decoded_len <= 0) {
-                VFS_DEBUG("VFS DEBUG: DST decode FAILED\n");
+                sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: DST decode FAILED\n");
                 if (total_read > 0) {
                     break;
                 }
@@ -2563,6 +2587,12 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
             continue;
         }
 
+        /* If audio ended prematurely, do not block on an empty queue (deadlock prevention).
+         * The gap-fill path at the top of _read_audio_region() will supply silence. */
+        if (file->audio_early_eof) {
+            break;
+        }
+
         /* Pull next decoded result from the process queue (blocking) */
         sa_tpool_result *result = sa_tpool_next_result_wait(file->process);
         if (!result) {
@@ -2582,6 +2612,8 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
         /* Check for EOF sentinel */
         if (job->is_eof) {
             sa_free(job);
+            /* Mark audio as exhausted so subsequent calls fill silence instead of blocking */
+            file->audio_early_eof = 1;
             /* Flush any remaining buffered data with proper padding */
             if (file->bytes_buffered > 0) {
                 int flush_ret = _flush_block_buffers(file);
@@ -2589,7 +2621,8 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
                     if (total_read > 0) break;
                     return flush_ret;
                 }
-                /* Continue loop to consume the flushed data */
+                /* Continue loop to consume the flushed data; audio_early_eof check
+                 * above will exit before calling sa_tpool_next_result_wait again */
                 continue;
             }
             break;
@@ -2597,11 +2630,19 @@ static int _read_audio_region_mt(sacd_vfs_file_t *file, uint8_t *buffer,
 
         /* Check for decode error */
         if (job->error_code != 0 || !job->decompressed_data || job->decompressed_size <= 0) {
-            VFS_DEBUG("VFS DEBUG: MT decode error %d at frame %u\n",
+            sa_log(NULL, SA_LOG_DEBUG,"VFS DEBUG: MT decode error %d at frame %u\n",
                       job->error_code, job->frame_number);
+            /* Treat decode errors as early EOF: disc may have corrupt/padding frames
+             * past the real audio end.  Fill the remainder with silence. */
+            if (!file->audio_early_eof) {
+                file->audio_early_eof = 1;
+                sa_log(NULL, SA_LOG_WARNING,
+                       "sacd_vfs: track %u MT decode error at frame %u,"
+                       " filling gap with silence\n",
+                       file->track_num, job->frame_number);
+            }
             _vfs_job_cleanup(job);
-            if (total_read > 0) break;
-            return SACD_VFS_ERROR_DST_DECODE;
+            break;
         }
 
         /* Transform the decoded DSD frame */

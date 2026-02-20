@@ -11,7 +11,7 @@ if(NOT CMAKE_GENERATOR MATCHES "Visual Studio")
     set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
 endif()
 
-project(dsd-nexus VERSION 0.1.82 LANGUAGES C CXX)
+project(dsd-nexus VERSION 0.1.83 LANGUAGES C CXX)
 
 # =============================================================================
 # Pitchfork Layout (PFL) Project Structure
@@ -56,6 +56,12 @@ option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
 # Auto-disable PS3 drive on platforms without SCSI pass-through support
 if(BUILD_PS3DRIVE AND APPLE)
     message(STATUS "PS3 drive support auto-disabled: no SCSI pass-through on macOS")
+    set(BUILD_PS3DRIVE OFF)
+endif()
+
+# sacd-vfs-only builds don't need PS3 drive or mbedTLS
+if(SACD_VFS_ONLY AND BUILD_PS3DRIVE)
+    message(STATUS "PS3 drive support auto-disabled: not needed for SACD_VFS_ONLY build")
     set(BUILD_PS3DRIVE OFF)
 endif()
 
